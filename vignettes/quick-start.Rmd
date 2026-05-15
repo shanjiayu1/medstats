@@ -1,0 +1,136 @@
+---
+title: "medstats: Quick Start Guide"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{medstats: Quick Start Guide}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+**medstats** is a comprehensive R package for medical statistics, providing streamlined functions for:
+
+- **Table formatting**: Publication-ready three-line tables and Word export
+- **Data processing**: Survival data conversion, baseline tables
+- **Regression analysis**: Automated GLM and Cox regression with univariate/multivariate results
+- **Repeated measures**: GEE analysis for longitudinal data
+- **Publication-quality plots**: KM curves, forest plots, RCS splines, ROC curves, Sankey diagrams, and more
+
+```{r setup}
+library(medstats)
+```
+
+# Table Formatting
+
+## Format a flextable
+
+The `format_flextable()` function applies a unified three-line table style:
+
+```{r eval=FALSE}
+# From a data frame
+ft <- format_flextable(head(mtcars[, 1:5]))
+
+# From a gtsummary object
+library(gtsummary)
+tbl <- tbl_summary(trial, include = c(age, grade, trt), by = trt)
+ft <- format_flextable(tbl)
+```
+
+## Export tables to Word
+
+Use `export_word()` to batch-export multiple tables into a single `.docx` file:
+
+```{r eval=FALSE}
+export_word(
+  data_list = list(head(mtcars), head(iris)),
+  table_titles = c("Table 1: mtcars", "Table 2: iris"),
+  output_file = "my_tables.docx"
+)
+```
+
+# Data Processing
+
+## Convert longitudinal data to survival format
+
+```{r eval=FALSE}
+surv_data <- long_to_surv_data(
+  data = my_clinical_data,
+  id_var = "PatientID",
+  event_flag_var = "is_event",
+  time_var = "follow_up_time",
+  baseline_vars = c("Sex", "Age")
+)
+```
+
+## Create a baseline table (Table 1)
+
+```{r eval=FALSE}
+make_table1(
+  data = trial,
+  vars = c("age", "marker", "stage", "grade"),
+  specific_vars = c("marker"),  # Non-normal distribution
+  group_var = "trt"
+)
+```
+
+# Regression Analysis
+
+## Automated GLM regression
+
+```{r eval=FALSE}
+# Linear regression
+run_glm_auto(mtcars, vars = c("hp", "wt"), outcome_var = "mpg", family = "gaussian")
+
+# Logistic regression
+run_glm_auto(trial, vars = c("age", "stage"), outcome_var = "response", family = "binomial")
+```
+
+## Automated Cox regression
+
+```{r eval=FALSE}
+run_cox_auto(lung, vars = c("age", "sex"), time_var = "time", event_var = "status")
+```
+
+# Plotting
+
+## Mean ± SE line chart
+
+```{r eval=FALSE}
+plot_meanse(
+  data = ChickWeight,
+  target_var = "weight",
+  time_var = "Time",
+  group_var = "Diet"
+)
+```
+
+## KM survival curve
+
+```{r eval=FALSE}
+lung$status2 <- ifelse(lung$status == 2, 1, 0)
+plot_km(lung, group_var = "sex", time_var = "time", status_var = "status2")
+```
+
+## RCS restricted cubic spline
+
+```{r eval=FALSE}
+plot_rcs(mtcars, exposure = "wt", outcome = "mpg", model_type = "linear")
+```
+
+## ROC curve
+
+```{r eval=FALSE}
+model <- glm(am ~ mpg + hp + wt, data = mtcars, family = binomial)
+mtcars$pred <- predict(model, type = "response")
+plot_roc(mtcars, true_var = "am", pred_var = "pred")
+```

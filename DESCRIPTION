@@ -1,0 +1,43 @@
+Package: medstats
+Title: Medical Statistics Toolkit for Clinical Research
+Version: 0.1.0
+Authors@R: person("陕嘉宇", email = "user@example.com", role = c("aut", "cre"))
+Description: A comprehensive R package for medical statistics, providing streamlined functions for
+    baseline tables, regression analysis (GLM, Cox), GEE repeated measures, and publication-ready
+    plots (KM curves, forest plots, RCS splines, ROC curves, Sankey diagrams, line/bar charts).
+    Also includes utilities for formatting flextable objects and exporting tables to Word documents.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends: R (>= 4.1.0)
+Imports:
+    dplyr,
+    tidyr,
+    ggplot2,
+    purrr,
+    stringr,
+    tibble,
+    readr,
+    rlang,
+    flextable,
+    gtsummary,
+    survival,
+    broom,
+    coin,
+    rms,
+    survminer,
+    geepack,
+    forestplot,
+    ggalluvial,
+    pROC,
+    scales,
+    officer
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    ResourceSelection,
+    nlme
+Config/testthat/edition: 3
+VignetteBuilder: knitr
