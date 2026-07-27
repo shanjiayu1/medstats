@@ -1,1 +1,85 @@
-整理了一些 我在读博期间常用的医学统计分析代码，包括数据整理、回归模型、统计绘图代码。
+
+**medstats** is a comprehensive R package for medical statistics, providing streamlined functions for:
+
+- **Table formatting**: Publication-ready three-line tables and Word export
+- **Data processing**: Survival data conversion, baseline tables
+- **Regression analysis**: Automated GLM and Cox regression with univariate/multivariate results
+- **Repeated measures**: GEE analysis for longitudinal data
+- **Publication-quality plots**: KM curves, forest plots, RCS splines, ROC curves, Sankey diagrams, and more
+
+# 下载和使用
+remotes::install_github("shanjiayu1/medstats")
+library(medstats)
+ 
+# Table Formatting
+
+## Format a flextable
+
+The `format_flextable()` function applies a unified three-line table style:
+
+```{r eval=FALSE}
+# From a data frame
+ft <- format_flextable(head(mtcars[, 1:5]))
+
+# From a gtsummary object
+library(gtsummary)
+tbl <- tbl_summary(trial, include = c(age, grade, trt), by = trt)
+ft <- format_flextable(tbl)
+```
+
+## Export tables to Word
+
+Use `export_word()` to batch-export multiple tables into a single `.docx` file:
+
+```{r eval=FALSE}
+export_word(
+  data_list = list(head(mtcars), head(iris)),
+  table_titles = c("Table 1: mtcars", "Table 2: iris"),
+  output_file = "my_tables.docx"
+)
+```
+
+# Data Processing
+
+## Convert longitudinal data to survival format
+
+```{r eval=FALSE}
+surv_data <- long_to_surv_data(
+  data = my_clinical_data,
+  id_var = "PatientID",
+  event_flag_var = "is_event",
+  time_var = "follow_up_time",
+  baseline_vars = c("Sex", "Age")
+)
+```
+
+## Create a baseline table (Table 1)
+
+```{r eval=FALSE}
+make_table1(
+  data = trial,
+  vars = c("age", "marker", "stage", "grade"),
+  specific_vars = c("marker"),  # Non-normal distribution
+  group_var = "trt"
+)
+```
+
+# Regression Analysis
+
+## Automated GLM regression
+
+```{r eval=FALSE}
+# Linear regression
+run_glm_auto(mtcars, vars = c("hp", "wt"), outcome_var = "mpg", family = "gaussian")
+
+# Logistic regression
+run_glm_auto(trial, vars = c("age", "stage"), outcome_var = "response", family = "binomial")
+```
+
+## Automated Cox regression
+
+```{r eval=FALSE}
+run_cox_auto(lung, vars = c("age", "sex"), time_var = "time", event_var = "status")
+```
+
+# Plotting
