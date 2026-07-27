@@ -7,7 +7,7 @@
 - **Repeated measures**: GEE analysis for longitudinal data
 - **Publication-quality plots**: KM curves, forest plots, RCS splines, ROC curves, Sankey diagrams, and more
 
-# 下载和使用
+# Install and load the package
 remotes::install_github("shanjiayu1/medstats")
 
 library(medstats)
@@ -84,3 +84,34 @@ run_cox_auto(lung, vars = c("age", "sex"), time_var = "time", event_var = "statu
 ```
 
 # Plotting
+## Mean ± SE line chart
+
+```{r eval=FALSE}
+plot_meanse(
+  data = ChickWeight,
+  target_var = "weight",
+  time_var = "Time",
+  group_var = "Diet"
+)
+```
+
+## KM survival curve
+
+```{r eval=FALSE}
+lung$status2 <- ifelse(lung$status == 2, 1, 0)
+plot_km(lung, group_var = "sex", time_var = "time", status_var = "status2")
+```
+
+## RCS restricted cubic spline
+
+```{r eval=FALSE}
+plot_rcs(mtcars, exposure = "wt", outcome = "mpg", model_type = "linear")
+```
+
+## ROC curve
+
+```{r eval=FALSE}
+model <- glm(am ~ mpg + hp + wt, data = mtcars, family = binomial)
+mtcars$pred <- predict(model, type = "response")
+plot_roc(mtcars, true_var = "am", pred_var = "pred")
+```
