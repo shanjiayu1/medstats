@@ -9,6 +9,7 @@
 
 # 下载和使用
 remotes::install_github("shanjiayu1/medstats")
+
 library(medstats)
  
 # Table Formatting
