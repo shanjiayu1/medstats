@@ -38,6 +38,7 @@ Suggests:
     knitr,
     rmarkdown,
     ResourceSelection,
-    nlme
+    nlme,
+    TH.data
 Config/testthat/edition: 3
 VignetteBuilder: knitr

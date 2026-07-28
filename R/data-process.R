@@ -134,8 +134,10 @@ make_table1 <- function(data,
         ),
         pvalue_fun = ~ gtsummary::style_pvalue(.x, digits = 3)
       ) |>
-      gtsummary::modify_fmt_fun(gtsummary::statistic ~ gtsummary::label_style_number(digits = 2)) |>
-      gtsummary::modify_header(gtsummary::statistic ~ "**Test Statistic**")
+      gtsummary::modify_fmt_fun(
+        statistic = gtsummary::label_style_number(digits = 2)
+      ) |>
+      gtsummary::modify_header(statistic = "**Test Statistic**")
   }
 
   t

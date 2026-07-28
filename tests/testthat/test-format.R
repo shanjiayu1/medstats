@@ -9,6 +9,16 @@ test_that("format_flextable works with flextable input", {
   expect_s3_class(ft, "flextable")
 })
 
+test_that("format_flextable works with gtsummary input", {
+  tbl <- gtsummary::tbl_summary(
+    gtsummary::trial,
+    include = c(age, grade, trt),
+    by = trt
+  )
+  ft <- format_flextable(tbl)
+  expect_s3_class(ft, "flextable")
+})
+
 test_that("export_word validates inputs", {
   expect_error(export_word("not_a_list", c("t1")), "list")
   expect_error(export_word(list(1, 2), c("only_one")), "不一致")

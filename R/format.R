@@ -27,7 +27,7 @@ format_flextable <- function(ft_data) {
     ft <- ft_data
     n_cols <- length(ft$body$col_keys)
   } else if (inherits(ft_data, "gtsummary")) {
-    ft <- flextable::as_flex_table(ft_data)
+    ft <- gtsummary::as_flex_table(ft_data)
     n_cols <- length(ft$body$col_keys)
   } else {
     ft <- flextable::flextable(ft_data)
@@ -42,9 +42,9 @@ format_flextable <- function(ft_data) {
     flextable::align(align = "left", part = "all", j = 1) |>
     flextable::align(align = "center", part = "all", j = 2:n_cols) |>
     flextable::border_remove() |>
-    flextable::hline_top(part = "header", border = flextable::fp_border(width = 1.5)) |>
-    flextable::hline_bottom(part = "header", border = flextable::fp_border(width = 1)) |>
-    flextable::hline_bottom(part = "body", border = flextable::fp_border(width = 1.5)) |>
+    flextable::hline_top(part = "header", border = officer::fp_border(width = 1.5)) |>
+    flextable::hline_bottom(part = "header", border = officer::fp_border(width = 1)) |>
+    flextable::hline_bottom(part = "body", border = officer::fp_border(width = 1.5)) |>
     flextable::autofit() |>
     flextable::set_table_properties(width = 1, layout = "autofit") |>
     flextable::line_spacing(space = 1, part = "all")

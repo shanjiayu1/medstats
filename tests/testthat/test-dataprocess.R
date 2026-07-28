@@ -42,3 +42,16 @@ test_that("make_table1 works without group_var", {
   )
   expect_s3_class(result, "gtsummary")
 })
+
+test_that("make_table1 handles a non-normal variable", {
+  skip_if_not_installed("gtsummary")
+  skip_if_not_installed("TH.data")
+  result <- make_table1(
+    data = gtsummary::trial,
+    vars = c("age", "marker", "grade"),
+    specific_vars = "marker",
+    group_var = "trt"
+  )
+  expect_s3_class(result, "gtsummary")
+  expect_true("statistic" %in% names(result$table_body))
+})

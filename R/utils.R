@@ -1,6 +1,14 @@
 #' @keywords internal
 #' @noRd
 wilcox_z_test <- function(data, variable, by, ...) {
+  if (!requireNamespace("TH.data", quietly = TRUE)) {
+    stop(
+      "Package `TH.data` is required for the Wilcoxon Z test. ",
+      "Install it with `install.packages(\"TH.data\")`.",
+      call. = FALSE
+    )
+  }
+
   f <- as.formula(paste0("`", variable, "` ~ factor(", by, ")"))
   res <- coin::wilcox_test(f, data = data, distribution = "asymptotic")
   data.frame(
