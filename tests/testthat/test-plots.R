@@ -86,3 +86,28 @@ test_that("plot_sankey returns ggplot object", {
   )
   expect_s3_class(result, "ggplot")
 })
+
+test_that("plot_sankey resolves the ggalluvial stratum stat with missing visits", {
+  skip_if_not_installed("ggalluvial")
+  test_data <- ChickWeight |>
+    dplyr::filter(Time %in% c(0, 10, 20)) |>
+    dplyr::mutate(
+      Visit = factor(paste0("Day", Time), levels = c("Day0", "Day10", "Day20")),
+      Status = dplyr::case_when(
+        weight < 80 ~ "Light",
+        weight >= 80 & weight < 150 ~ "Normal",
+        weight >= 150 ~ "Heavy"
+      )
+    )
+
+  result <- plot_sankey(
+    data = test_data,
+    id_var = "Chick",
+    time_var = "Visit",
+    state_var = "Status",
+    na_strategy = "show"
+  )
+
+  expect_s3_class(result, "ggplot")
+  expect_no_error(ggplot2::ggplot_build(result))
+})

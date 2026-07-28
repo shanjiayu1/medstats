@@ -63,6 +63,113 @@ long_to_surv_data <- function(data,
 }
 
 
+#' Merge duplicate records using the first non-missing value
+#'
+#' @description
+#' Checks for records that have the same values in the specified grouping
+#' variables and merges each duplicate group into one record. For every
+#' non-grouping variable, the first non-missing value in the original row order
+#' is retained.
+#'
+#' @param data A data frame.
+#' @param group_vars A non-empty character vector containing the column names
+#'   used to identify duplicate records.
+#' @param verbose Logical. If `TRUE` (the default), reports whether duplicate
+#'   groups were found and how many records were merged.
+#'
+#' @return A data frame with one row per unique combination of `group_vars`.
+#'   The original column order is retained. If every value of a variable is
+#'   missing within a group, a typed missing value is returned.
+#'
+#' @details
+#' Row order determines which value is retained when a duplicate group contains
+#' more than one different non-missing value. Sort `data` before calling this
+#' function if another priority is required.
+#'
+#' @examples
+#' clinical_data <- data.frame(
+#'   hospital_id = c("A001", "A001", "A002"),
+#'   age = c(NA, 65, 52),
+#'   diagnosis = c("hypertension", NA, "diabetes")
+#' )
+#'
+#' merge_duplicate_records(clinical_data, group_vars = "hospital_id")
+#'
+#' @export
+merge_duplicate_records <- function(data, group_vars, verbose = TRUE) {
+  if (!is.data.frame(data)) {
+    stop("`data` must be a data frame.", call. = FALSE)
+  }
+
+  if (
+    !is.character(group_vars) ||
+      length(group_vars) == 0L ||
+      anyNA(group_vars) ||
+      any(!nzchar(group_vars))
+  ) {
+    stop(
+      "`group_vars` must be a non-empty character vector of column names.",
+      call. = FALSE
+    )
+  }
+
+  group_vars <- unique(group_vars)
+  missing_vars <- setdiff(group_vars, names(data))
+  if (length(missing_vars) > 0L) {
+    stop(
+      "Columns not found in `data`: ",
+      paste(missing_vars, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
+    stop("`verbose` must be either TRUE or FALSE.", call. = FALSE)
+  }
+
+  duplicate_rows <- duplicated(data[group_vars]) |
+    duplicated(data[group_vars], fromLast = TRUE)
+  duplicate_keys <- unique(data[duplicate_rows, group_vars, drop = FALSE])
+  duplicate_group_count <- nrow(duplicate_keys)
+  merged_record_count <- sum(duplicated(data[group_vars]))
+
+  if (verbose) {
+    if (duplicate_group_count == 0L) {
+      message("No duplicate records found for `group_vars`.")
+    } else {
+      message(
+        "Found ",
+        duplicate_group_count,
+        " duplicate group(s); merged ",
+        merged_record_count,
+        " redundant record(s)."
+      )
+    }
+  }
+
+  if (duplicate_group_count == 0L) {
+    return(data)
+  }
+
+  original_names <- names(data)
+
+  data |>
+    dplyr::group_by(dplyr::across(dplyr::all_of(group_vars))) |>
+    dplyr::summarise(
+      dplyr::across(
+        dplyr::everything(),
+        ~ dplyr::first(
+          .x[!is.na(.x)],
+          default = .x[NA_integer_][1]
+        )
+      ),
+      .groups = "drop"
+    ) |>
+    dplyr::select(dplyr::all_of(original_names))
+}
+
+
 #' Create a baseline characteristics table (Table 1)
 #'
 #' @description

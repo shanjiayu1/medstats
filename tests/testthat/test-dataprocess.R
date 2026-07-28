@@ -24,6 +24,68 @@ test_that("long_to_surv_data produces correct structure", {
   expect_equal(result$time[result$id == 2], 3)
 })
 
+test_that("merge_duplicate_records keeps the first non-missing value", {
+  test_data <- data.frame(
+    住院号 = c("A001", "A001", "A002", "A002"),
+    年龄 = c(NA, 65, 52, 53),
+    诊断 = c("高血压", NA, NA, "糖尿病"),
+    检查日期 = as.Date(c(NA, NA, "2026-01-02", NA)),
+    stringsAsFactors = FALSE
+  )
+
+  expect_message(
+    result <- merge_duplicate_records(test_data, "住院号"),
+    "Found 2 duplicate group"
+  )
+
+  expect_equal(nrow(result), 2)
+  expect_identical(names(result), names(test_data))
+  expect_equal(result$年龄, c(65, 52))
+  expect_equal(result$诊断, c("高血压", "糖尿病"))
+  expect_true(is.na(result$检查日期[1]))
+  expect_s3_class(result$检查日期, "Date")
+})
+
+test_that("merge_duplicate_records supports multiple grouping variables", {
+  test_data <- data.frame(
+    id = c(1, 1, 1),
+    visit = c(1, 1, 2),
+    value = c(NA, 10, 20)
+  )
+
+  result <- merge_duplicate_records(
+    test_data,
+    group_vars = c("id", "visit"),
+    verbose = FALSE
+  )
+
+  expect_equal(nrow(result), 2)
+  expect_equal(result$value, c(10, 20))
+})
+
+test_that("merge_duplicate_records returns unchanged data without duplicates", {
+  test_data <- data.frame(id = 1:2, value = c(NA, 2))
+
+  expect_message(
+    result <- merge_duplicate_records(test_data, "id"),
+    "No duplicate records"
+  )
+  expect_identical(result, test_data)
+})
+
+test_that("merge_duplicate_records validates grouping columns", {
+  test_data <- data.frame(id = 1:2)
+
+  expect_error(
+    merge_duplicate_records(test_data, "unknown"),
+    "Columns not found"
+  )
+  expect_error(
+    merge_duplicate_records(test_data, character()),
+    "non-empty character vector"
+  )
+})
+
 test_that("make_table1 returns gtsummary object", {
   skip_if_not_installed("gtsummary")
   result <- make_table1(

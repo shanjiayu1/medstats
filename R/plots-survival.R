@@ -386,8 +386,13 @@ plot_sankey <- function(data,
       ggalluvial::geom_flow(ggplot2::aes(alluvium = trajectory_id, fill = !!state_sym),
                              width = 4/12, alpha = 0.5, color = "white") +
       ggalluvial::geom_stratum(ggplot2::aes(fill = !!state_sym), width = 4/12, color = "grey") +
-      ggplot2::geom_label(stat = "stratum", ggplot2::aes(label = ggplot2::after_stat(stratum)),
-                          size = 3.5, fill = "white", color = "black") +
+      ggalluvial::stat_stratum(
+        geom = "label",
+        ggplot2::aes(label = ggplot2::after_stat(stratum)),
+        size = 3.5,
+        fill = "white",
+        color = "black"
+      ) +
       fill_scale +
       ggplot2::scale_x_discrete(expand = c(0.05, 0.05)) +
       ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0))) +

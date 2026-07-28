@@ -76,12 +76,16 @@ export_word(
 The `long_to_surv_data()` function converts longitudinal clinical records into a dataset suitable for survival analysis.
 
 ```r
+my_clinical_data <- ChickWeight |>
+  mutate(
+    is_reach_150g = ifelse(weight >= 150, 1, 0)
+  )
 surv_data <- long_to_surv_data(
   data = my_clinical_data,
-  id_var = "PatientID",
-  event_flag_var = "is_event",
-  time_var = "follow_up_time",
-  baseline_vars = c("Sex", "Age")
+  id_var = "Chick",
+  event_flag_var = "is_reach_150g",
+  time_var = "Time",
+  baseline_vars = c("Diet")
 )
 ```
 
@@ -96,6 +100,32 @@ make_table1(
   specific_vars = "marker",  # Variable with a non-normal distribution
   group_var = "trt"
 )
+```
+
+![1785225766077](image/README/1785225766077.png)
+
+### Create a longdata_analysis table
+
+The `longdata_analysis()` function analyzes repeated-measures data to evaluate changes in an outcome over time and compare longitudinal trends between two groups.
+
+```r
+library(nlme)  
+my_data_2groups <- Orthodont %>%
+  as.data.frame() %>% 
+  mutate(
+    time_str = paste0(age, "岁") # 故意构造文本格式时间："8岁", "10岁"...
+  )
+results_2groups <- longdata_analysis(
+  data          = my_data_2groups,
+  id_col        = "Subject",      # 个体ID
+  treatment_col = "Sex",          # 分组：男/女（仅2组）
+  time_col      = "time_str",     # 时间：8岁/10岁...
+  score_col     = "distance"      # 结局指标：距离
+)
+
+# 4. 打印结果
+print(results_2groups)
+
 ```
 
 ## Regression Analysis
@@ -163,6 +193,7 @@ plot_meanse(
   legend_title = "不同饮食分组",
 )
 ```
+
 <img width="612" height="612" alt="示例图片" src="https://github.com/user-attachments/assets/b1b9737c-8300-46d8-a4da-b10d312931f8" />
 
 ### Stacked percentage bar plot
@@ -189,6 +220,8 @@ plot_stacked(
 )
 ```
 
+![1785225958301](image/README/1785225958301.png)
+
 ### Kaplan–Meier survival curve
 
 The `plot_km()` function generates publication-ready Kaplan–Meier survival curves.
@@ -208,38 +241,127 @@ plot_km(
 )
 ```
 
+![1785226634242](image/README/1785226634242.png)
+
+### sankey plot
+
+```r
+sankey_data <- datasets::ChickWeight |>
+  filter(Time %in% c(0, 10, 20)) |>
+  mutate(
+    Visit_Time = factor(
+      paste0("第 ", Time, " 天"),
+      levels = c("第 0 天", "第 10 天", "第 20 天")
+    ),
+    Weight_Status = case_when(
+      weight < 50 ~ "偏瘦 (Light)",
+      weight < 150 ~ "正常 (Normal)",
+      TRUE ~ "超重 (Overweight)"
+    ),
+    Weight_Status = factor(
+      Weight_Status,
+      levels = c(
+        "偏瘦 (Light)",
+        "正常 (Normal)",
+        "超重 (Overweight)"
+      )
+    )
+  )
+
+sankey_plot <- plot_sankey(
+  data = sankey_data,
+  id_var = "Chick",
+  time_var = "Visit_Time",
+  state_var = "Weight_Status",
+  na_strategy = "show",
+  missing_label = "Drop-out (失访)"
+)
+
+sankey_plot
+```
+
+### forest plot
+
+```r
+f_data <- run_glm_auto(
+  data = trial,
+  vars = c("age", "stage"),
+  outcome_var = "response",
+  family = "binomial"
+)
+
+plot_forest(
+  data = f_data[1:3],
+  ci_column = 2, 
+  x_ticks = c(0, 0.5,1,1.5,2),
+  width = 6.5, 
+  output_name = "TCM_Forestplot2.png"
+)
+```
+![1785228928911](image/README/1785228928911.png)
 ### Restricted cubic spline plot
 
 The `plot_rcs()` function evaluates and visualizes potential nonlinear associations using restricted cubic splines.
 
 ```r
-plot_rcs(
+#logsitic模型：马力(hp)对自动变速箱(am)的影响，调整体重(wt)，4个节点，OR图
+res1 <- plot_rcs(
+  data = mtcars,
+  exposure = "hp",
+  outcome = "am",
+  covars = c("wt"),
+  nk = 4,
+  # ylim=c(0,5),
+  model_type = "logistic",
+  xlab = "马力(hp)",
+  ylab = "自动变速箱概率"
+)
+
+res1$plot
+
+
+#线性模型：体重(wt)对每加仑英里数(mpg)的影响，调整马力(hp)和排量(disp)，4个节点，预测值图
+res2 <- plot_rcs(
   data = mtcars,
   exposure = "wt",
   outcome = "mpg",
-  model_type = "linear"
+  covars = c("hp", "disp"),
+  model_type = "linear",
+  # ylim=c(0,20),
+  ylab = "Predicted MPG"
 )
-```
 
+res2$plot
+
+#cox模型：年龄(age)对生存时间(time)和状态(status)的影响
+res3 <- plot_rcs(
+  data = lung,
+  exposure = "age",
+  outcome = "Surv(time, status)",
+  covars = c("sex", "ph.ecog"),
+  model_type = "cox",
+  ylab = "Hazard Ratio"
+)
+
+res3$plot
+```
+![1785227052210](image/README/1785227052210.png)
 ### ROC curve
 
 The `plot_roc()` function evaluates the discrimination performance of a prediction model using a receiver operating characteristic curve.
 
 ```r
-model <- glm(
-  am ~ mpg + hp + wt,
-  data = mtcars,
-  family = binomial
-)
+model <- glm(am ~ mpg + hp + wt, data = mtcars, family = binomial)
+train_data <- mtcars
+train_data$pred_prob <- predict(model, newdata = train_data, type = "response")
 
-mtcars$pred <- predict(
-  model,
-  type = "response"
+res_train <- plot_roc(
+  data = train_data, 
+  true_var = "am", 
+  pred_var = "pred_prob", 
+  title = "训练集 ROC 曲线 (mtcars)",
+  line_color = "#2E86AB"   # 蓝色
 )
-
-plot_roc(
-  data = mtcars,
-  true_var = "am",
-  pred_var = "pred"
-)
+res_train$plot
 ```
+![1785227090046](image/README/1785227090046.png)
