@@ -104,6 +104,28 @@ make_table1(
 
 ![1785225766077](image/README/1785225766077.png)
 
+### Merge duplicate records
+
+The merge_duplicate_records() function identifies duplicate records using one or more grouping variables and merges each duplicate group into a single record. For every other variable, the first non-missing value in the original row order is retained.
+
+```r
+clinical_data <- data.frame(
+  patient_id = c("P001", "P001", "P002", "P002"),
+  age = c(NA, 65, 52, 53),
+  diagnosis = c("Hypertension", NA, NA, "Diabetes"),
+  admission_date = as.Date(c(NA, NA, "2026-01-02", NA))
+)
+
+data_clean <- merge_duplicate_records(
+  data = clinical_data,
+  group_vars = "patient_id"
+)
+
+data_clean
+```
+
+## Data analysis
+
 ### Create a longdata_analysis table
 
 The `longdata_analysis()` function analyzes repeated-measures data to evaluate changes in an outcome over time and compare longitudinal trends between two groups.
@@ -279,6 +301,7 @@ sankey_plot <- plot_sankey(
 
 sankey_plot
 ```
+![1785229734133](image/README/1785229734133.png)
 
 ### forest plot
 

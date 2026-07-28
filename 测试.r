@@ -272,10 +272,61 @@ sankey_plot <- plot_sankey(
   id_var         = "Chick",           
   time_var       = "Visit_Time",      
   state_var      = "Weight_Status",   
-  na_strategy    = "show",             # <--- 改为 "drop" 即可无缝切换为完整版
+  na_strategy    = "drop",             # <--- 改为 "drop" 即可无缝切换为完整版
   missing_label  = "Drop-out (失访)"  # 可以自定义叫什么名字          
 )
 
 
 
 mtcars
+
+
+
+
+original_data <- datasets::airquality[1:5, ]
+
+# 添加记录编号，作为判断重复的变量
+original_data$record_id <- seq_len(nrow(original_data))
+
+# 构造两份互补数据：
+# 第一份 Ozone 缺失，第二份 Solar.R 缺失
+data_with_duplicates <- rbind(
+  transform(original_data, Ozone = NA),
+  transform(original_data, Solar.R = NA)
+)
+
+# 查看重复数据
+data_with_duplicates
+
+# 检查并合并重复记录
+data_clean <- merge_duplicate_records(
+  data = data_with_duplicates,
+  group_vars = "record_id"
+)
+
+clinical_data <- data.frame(
+  patient_id = c("P001", "P001", "P002", "P002"),
+  age = c(NA, 65, 52, 53),
+  diagnosis = c("Hypertension", NA, NA, "Diabetes"),
+  admission_date = as.Date(c(NA, NA, "2026-01-02", NA))
+)
+
+data_clean <- merge_duplicate_records(
+  data = clinical_data,
+  group_vars = "patient_id"
+)
+
+data_clean
+
+data_clean <- merge_duplicate_records(
+  data = original_data,
+  group_vars = "record_id"
+)
+
+
+
+# 查看结果
+data_clean
+
+# 检查每个 record_id 是否只保留一条记录
+anyDuplicated(data_clean$record_id)
