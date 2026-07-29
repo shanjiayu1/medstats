@@ -1,59 +1,78 @@
 # medstats
 
-**medstats** is an R package designed to streamline common workflows in medical and epidemiological statistics. It provides convenient functions for data processing, statistical modeling, table generation, and publication-quality visualization.
+**medstats** is an R package that streamlines common workflows in
+medical and epidemiological research. It provides tools for clinical data
+processing, statistical modeling, publication-ready tables, and
+high-quality visualization.
 
-Key features include:
+## Highlights
 
-- **Table formatting**: Create publication-ready three-line tables and export them to Word
-- **Data processing**: Convert longitudinal data into survival-analysis format and generate baseline characteristic tables
-- **Regression analysis**: Perform automated generalized linear models and Cox proportional hazards regression, including univariable and multivariable analyses
-- **Repeated-measures analysis**: Fit generalized estimating equation models for longitudinal and correlated data
-- **Publication-quality visualization**: Generate Kaplan–Meier curves, forest plots, restricted cubic spline plots, ROC curves, Sankey diagrams, and more
+- Create baseline characteristic tables and publication-ready three-line tables.
+- Convert longitudinal clinical records into survival-analysis datasets.
+- Fit generalized linear models, Cox models, and GEE repeated-measures models.
+- Produce Kaplan–Meier curves, forest plots, restricted cubic spline plots,
+  ROC curves, Sankey diagrams, and longitudinal summary plots.
+- Export multiple formatted tables to a single Word document.
 
 ## Installation
 
-Install the development version of **medstats** from GitHub:
+Install the development version from GitHub:
 
 ```r
-# Install the remotes package if necessary
 install.packages("remotes")
 
-# Install medstats from GitHub
-remotes::install_github("shanjiayu1/medstats")
+remotes::install_github(
+  "shanjiayu1/medstats",
+  dependencies = TRUE
+)
 
-# Load the package
 library(medstats)
 ```
 
-## Main Features
+Using `dependencies = TRUE` also installs packages needed by optional examples,
+tests, and vignettes.
 
-### Table Formatting
+## Function reference
 
-#### Format a `flextable`
+| Category        | Function                      | Description                                                                                              |
+| --------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Tables          | `format_flextable()`        | Apply a publication-ready three-line table style to a data frame,`gtsummary`, or `flextable` object. |
+| Tables          | `export_word()`             | Export multiple formatted tables to one Word document.                                                   |
+| Data processing | `long_to_surv_data()`       | Convert longitudinal records into one-row-per-subject survival data.                                     |
+| Data processing | `merge_duplicate_records()` | Merge duplicate records using the first non-missing value in each field.                                 |
+| Data processing | `make_table1()`             | Create a baseline characteristics table with optional group comparisons.                                 |
+| Modeling        | `longdata_analysis()`       | Analyze repeated measurements using descriptive statistics, group comparisons, and GEE models.           |
+| Modeling        | `run_glm_auto()`            | Run automated univariable and multivariable generalized linear models.                                   |
+| Modeling        | `run_cox_auto()`            | Run automated univariable and multivariable Cox regression.                                              |
+| Visualization   | `plot_meanse()`             | Plot group-specific means with standard errors over time.                                                |
+| Visualization   | `plot_stacked()`            | Plot category percentages as stacked bars over time.                                                     |
+| Visualization   | `plot_km()`                 | Draw Kaplan–Meier cumulative event curves with an optional risk table.                                  |
+| Visualization   | `plot_sankey()`             | Visualize transitions between states across time points.                                                 |
+| Visualization   | `plot_forest()`             | Create a forest plot from formatted estimate and confidence-interval text.                               |
+| Visualization   | `plot_rcs()`                | Evaluate and visualize nonlinear associations using restricted cubic splines.                            |
+| Visualization   | `plot_roc()`                | Evaluate discrimination using a ROC curve, AUC, and optimal cutoff.                                      |
 
-The `format_flextable()` function applies a consistent, publication-ready three-line table style.
+## Table formatting
+
+### Format a table
 
 ```r
 # Format a data frame
-ft <- format_flextable(
+ft_data <- format_flextable(
   head(mtcars[, 1:5])
 )
 
 # Format a gtsummary object
-library(gtsummary)
-
-tbl <- tbl_summary(
-  trial,
-  include = c(age, grade, trt),
+tbl <- gtsummary::tbl_summary(
+  data = gtsummary::trial,
+  include = c(age, marker, grade),
   by = trt
 )
 
-ft <- format_flextable(tbl)
+ft_summary <- format_flextable(tbl)
 ```
 
-#### Export tables to Word
-
-The `export_word()` function can export multiple tables to a single Word document.
+### Export tables to Word
 
 ```r
 export_word(
@@ -62,104 +81,105 @@ export_word(
     head(iris)
   ),
   table_titles = c(
-    "Table 1. mtcars Dataset",
-    "Table 2. iris Dataset"
+    "Table 1. mtcars dataset",
+    "Table 2. iris dataset"
   ),
   output_file = "my_tables.docx"
 )
 ```
 
-## Data Processing
+## Data processing
 
-### Convert longitudinal data to survival-analysis format
-
-The `long_to_surv_data()` function converts longitudinal clinical records into a dataset suitable for survival analysis.
+### Convert longitudinal data to survival format
 
 ```r
-my_clinical_data <- ChickWeight |>
-  mutate(
-    is_reach_150g = ifelse(weight >= 150, 1, 0)
+clinical_data <- datasets::ChickWeight |>
+  dplyr::mutate(
+    reached_150g = as.integer(weight >= 150)
   )
+
 surv_data <- long_to_surv_data(
-  data = my_clinical_data,
+  data = clinical_data,
   id_var = "Chick",
-  event_flag_var = "is_reach_150g",
+  event_flag_var = "reached_150g",
   time_var = "Time",
-  baseline_vars = c("Diet")
+  baseline_vars = "Diet"
 )
 ```
-
-### Create a baseline characteristics table
-
-The `make_table1()` function generates a baseline characteristics table commonly used as Table 1 in medical research.
-
-```r
-make_table1(
-  data = trial,
-  vars = c("age", "marker", "stage", "grade"),
-  specific_vars = "marker",  # Variable with a non-normal distribution
-  group_var = "trt"
-)
-```
-
-![1785225766077](image/README/1785225766077.png)
 
 ### Merge duplicate records
 
-The merge_duplicate_records() function identifies duplicate records using one or more grouping variables and merges each duplicate group into a single record. For every other variable, the first non-missing value in the original row order is retained.
-
 ```r
-clinical_data <- data.frame(
+clinical_records <- data.frame(
   patient_id = c("P001", "P001", "P002", "P002"),
   age = c(NA, 65, 52, 53),
-  diagnosis = c("Hypertension", NA, NA, "Diabetes"),
-  admission_date = as.Date(c(NA, NA, "2026-01-02", NA))
+  diagnosis = c("Hypertension", NA, NA, "Diabetes")
 )
 
-data_clean <- merge_duplicate_records(
-  data = clinical_data,
+clean_records <- merge_duplicate_records(
+  data = clinical_records,
   group_vars = "patient_id"
 )
 
-data_clean
+clean_records
 ```
 
-## Data analysis
+When conflicting non-missing values occur in a duplicate group, the function
+retains the first value in the current row order. Sort the data beforehand if
+another priority is required.
 
-### Create a longdata_analysis table
-
-The `longdata_analysis()` function analyzes repeated-measures data to evaluate changes in an outcome over time and compare longitudinal trends between two groups.
+### Create a baseline characteristics table
 
 ```r
-library(nlme)  
-my_data_2groups <- Orthodont %>%
-  as.data.frame() %>% 
-  mutate(
-    time_str = paste0(age, "岁") # 故意构造文本格式时间："8岁", "10岁"...
-  )
-results_2groups <- longdata_analysis(
-  data          = my_data_2groups,
-  id_col        = "Subject",      # 个体ID
-  treatment_col = "Sex",          # 分组：男/女（仅2组）
-  time_col      = "time_str",     # 时间：8岁/10岁...
-  score_col     = "distance"      # 结局指标：距离
+table1 <- make_table1(
+  data = gtsummary::trial,
+  vars = c("age", "marker", "stage", "grade"),
+  specific_vars = "marker",  # Report as median (P25, P75)
+  group_var = "trt"
 )
 
-# 4. 打印结果
-print(results_2groups)
-
+table1
 ```
 
-## Regression Analysis
+![Example baseline table](image/README/1785225766077.png)
+
+## Statistical modeling
+
+### Repeated-measures analysis with GEE
+
+`longdata_analysis()` summarizes the outcome at each time point, compares
+groups cross-sectionally, evaluates within-group trends, and tests the
+time-by-group interaction using GEE.
+
+```r
+data("Orthodont", package = "nlme")
+
+orthodont_data <- Orthodont |>
+  as.data.frame() |>
+  dplyr::mutate(
+    time_str = paste0(age, " years")
+  )
+
+gee_results <- longdata_analysis(
+  data = orthodont_data,
+  id_col = "Subject",
+  treatment_col = "Sex",
+  time_col = "time_str",
+  score_col = "distance"
+)
+
+print(gee_results)
+```
+
+The input must be in long format, with one row per subject and measurement
+time. The time variable must contain an extractable numeric component.
 
 ### Automated generalized linear models
 
-The `run_glm_auto()` function performs automated generalized linear model analyses and summarizes both univariable and multivariable results.
-
-#### Linear regression
+Linear regression:
 
 ```r
-run_glm_auto(
+linear_results <- run_glm_auto(
   data = mtcars,
   vars = c("hp", "wt"),
   outcome_var = "mpg",
@@ -167,11 +187,11 @@ run_glm_auto(
 )
 ```
 
-#### Logistic regression
+Logistic regression:
 
 ```r
-run_glm_auto(
-  data = trial,
+logistic_results <- run_glm_auto(
+  data = gtsummary::trial,
   vars = c("age", "stage"),
   outcome_var = "response",
   family = "binomial"
@@ -180,59 +200,59 @@ run_glm_auto(
 
 ### Automated Cox regression
 
-The `run_cox_auto()` function performs automated Cox proportional hazards regression.
-
 ```r
-run_cox_auto(
-  data = lung,
+lung_data <- survival::lung
+lung_data$status_event <- as.integer(lung_data$status == 2)
+lung_data$sex <- factor(
+  lung_data$sex,
+  levels = c(1, 2),
+  labels = c("Male", "Female")
+)
+
+cox_results <- run_cox_auto(
+  data = lung_data,
   vars = c("age", "sex"),
   time_var = "time",
-  event_var = "status"
+  event_var = "status_event"
 )
 ```
 
-## Data Visualization
+## Data visualization
 
 ### Mean ± standard error line plot
 
-The `plot_meanse()` function visualizes longitudinal changes using group-specific means and standard errors.
-
 ```r
-my_data <- ChickWeight |>
-  filter(Time %in% c(0, 4, 10, 14, 21)) |>   # 挑选第 0,4,10,14,21 天
-  mutate(
-    time_str = paste0("第", Time, "天"),      # 制造 "第10天" 这种字符串
-    Diet_Name = paste0("饮食配方", Diet)      # 把组别从 1,2,3,4 改为有意义的名称
+growth_data <- datasets::ChickWeight |>
+  dplyr::filter(Time %in% c(0, 4, 10, 14, 21)) |>
+  dplyr::mutate(
+    time_label = paste0("Day ", Time),
+    diet_label = paste0("Diet ", Diet)
   )
 
-plot_meanse(
-  data         = my_data,
-  target_var   = "weight",         # 结局指标：体重
-  time_var     = "time_str",       # 时间列名："第x天"
-  group_var    = "Diet_Name",      # 分组变量："饮食配方x"
-  xlab         = "生长天数 (Days)",# 自定义 X 轴标签
-  ylab         = "平均体重 (g)",   # 自定义 Y 轴标签
-  legend_title = "不同饮食分组",
+meanse_result <- plot_meanse(
+  data = growth_data,
+  target_var = "weight",
+  time_var = "time_label",
+  group_var = "diet_label",
+  xlab = "Growth time (days)",
+  ylab = "Mean weight (g)",
+  legend_title = "Diet"
 )
 ```
 
-<img width="612" height="612" alt="示例图片" src="https://github.com/user-attachments/assets/b1b9737c-8300-46d8-a4da-b10d312931f8" />
+![Mean and standard error line plot](image/README/1785225730190.png)
 
 ### Stacked percentage bar plot
 
-The `plot_stacked()` function categorizes a continuous variable into
-intervals and visualizes the percentage distribution of those categories
-at each time point.
-
 ```r
-chick_weight <- ChickWeight
-chick_weight$Time <- factor(
-  chick_weight$Time,
-  levels = sort(unique(chick_weight$Time))
+stacked_data <- datasets::ChickWeight
+stacked_data$Time <- factor(
+  stacked_data$Time,
+  levels = sort(unique(stacked_data$Time))
 )
 
-plot_stacked(
-  data = chick_weight,
+stacked_result <- plot_stacked(
+  data = stacked_data,
   target_var = "weight",
   time_var = "Time",
   breaks = c(-Inf, 100, 200, 300, Inf),
@@ -242,149 +262,160 @@ plot_stacked(
 )
 ```
 
-![1785225958301](image/README/1785225958301.png)
+![Stacked percentage bar plot](image/README/1785225958301.png)
 
-### Kaplan–Meier survival curve
-
-The `plot_km()` function generates publication-ready Kaplan–Meier survival curves.
+### Kaplan–Meier cumulative event curve
 
 ```r
-lung$status2 <- ifelse(
-  lung$status == 2,
-  1,
-  0
+lung_data <- survival::lung
+lung_data$status_event <- as.integer(lung_data$status == 2)
+lung_data$sex <- factor(
+  lung_data$sex,
+  levels = c(1, 2),
+  labels = c("Male", "Female")
 )
 
 plot_km(
-  data = lung,
+  data = lung_data,
   group_var = "sex",
   time_var = "time",
-  status_var = "status2"
+  status_var = "status_event",
+  legend_labs = c("Male", "Female"),
+  legend_title = "Sex",
+  xlab = "Follow-up time (days)",
+  ylab = "Cumulative mortality (%)",
+  xlim = c(0, 1000),
+  break_time = 200,
+  show_risk_table = TRUE,
+  save_filename = "Lung_KM.png"
 )
 ```
 
-![1785226634242](image/README/1785226634242.png)
+![Kaplan-Meier curve](image/README/1785226634242.png)
 
-### sankey plot
+### Sankey plot
 
 ```r
 sankey_data <- datasets::ChickWeight |>
-  filter(Time %in% c(0, 10, 20)) |>
-  mutate(
-    Visit_Time = factor(
-      paste0("第 ", Time, " 天"),
-      levels = c("第 0 天", "第 10 天", "第 20 天")
+  dplyr::filter(Time %in% c(0, 10, 20)) |>
+  dplyr::mutate(
+    visit = factor(
+      paste0("Day ", Time),
+      levels = c("Day 0", "Day 10", "Day 20")
     ),
-    Weight_Status = case_when(
-      weight < 50 ~ "偏瘦 (Light)",
-      weight < 150 ~ "正常 (Normal)",
-      TRUE ~ "超重 (Overweight)"
+    weight_status = dplyr::case_when(
+      weight < 50 ~ "Light",
+      weight < 150 ~ "Normal",
+      TRUE ~ "Heavy"
     ),
-    Weight_Status = factor(
-      Weight_Status,
-      levels = c(
-        "偏瘦 (Light)",
-        "正常 (Normal)",
-        "超重 (Overweight)"
-      )
+    weight_status = factor(
+      weight_status,
+      levels = c("Light", "Normal", "Heavy")
     )
   )
 
 sankey_plot <- plot_sankey(
   data = sankey_data,
   id_var = "Chick",
-  time_var = "Visit_Time",
-  state_var = "Weight_Status",
+  time_var = "visit",
+  state_var = "weight_status",
   na_strategy = "show",
-  missing_label = "Drop-out (失访)"
+  missing_label = "Drop-out"
 )
 
 sankey_plot
 ```
-![1785229734133](image/README/1785229734133.png)
 
-### forest plot
+![Sankey plot](image/README/1785229734133.png)
+
+### Forest plot
 
 ```r
-f_data <- run_glm_auto(
-  data = trial,
-  vars = c("age", "stage"),
-  outcome_var = "response",
-  family = "binomial"
+forest_data <- data.frame(
+  Variable = c("Age", "Stage II", "Stage III"),
+  `OR (95% CI)` = c(
+    "1.02 (0.99, 1.05)",
+    "1.45 (0.82, 2.56)",
+    "2.10 (1.12, 3.94)"
+  ),
+  `P value` = c("0.180", "0.200", "0.021"),
+  check.names = FALSE
 )
 
 plot_forest(
-  data = f_data[1:3],
-  ci_column = 2, 
-  x_ticks = c(0, 0.5,1,1.5,2),
-  width = 6.5, 
-  output_name = "TCM_Forestplot2.png"
+  data = forest_data,
+  ci_column = "OR (95% CI)",
+  x_ticks = c(0, 0.5, 1, 2, 4),
+  output_name = "Forest_plot.png"
 )
 ```
-![1785228928911](image/README/1785228928911.png)
+
+![Forest plot](image/README/1785228928911.png)
+
 ### Restricted cubic spline plot
 
-The `plot_rcs()` function evaluates and visualizes potential nonlinear associations using restricted cubic splines.
+Linear model:
 
 ```r
-#logsitic模型：马力(hp)对自动变速箱(am)的影响，调整体重(wt)，4个节点，OR图
-res1 <- plot_rcs(
-  data = mtcars,
-  exposure = "hp",
-  outcome = "am",
-  covars = c("wt"),
-  nk = 4,
-  # ylim=c(0,5),
-  model_type = "logistic",
-  xlab = "马力(hp)",
-  ylab = "自动变速箱概率"
-)
-
-res1$plot
-
-
-#线性模型：体重(wt)对每加仑英里数(mpg)的影响，调整马力(hp)和排量(disp)，4个节点，预测值图
-res2 <- plot_rcs(
+rcs_linear <- plot_rcs(
   data = mtcars,
   exposure = "wt",
   outcome = "mpg",
   covars = c("hp", "disp"),
+  nk = 4,
   model_type = "linear",
-  # ylim=c(0,20),
+  xlab = "Weight",
   ylab = "Predicted MPG"
 )
 
-res2$plot
-
-#cox模型：年龄(age)对生存时间(time)和状态(status)的影响
-res3 <- plot_rcs(
-  data = lung,
-  exposure = "age",
-  outcome = "Surv(time, status)",
-  covars = c("sex", "ph.ecog"),
-  model_type = "cox",
-  ylab = "Hazard Ratio"
-)
-
-res3$plot
+rcs_linear$plot
 ```
-![1785227052210](image/README/1785227052210.png)
-### ROC curve
 
-The `plot_roc()` function evaluates the discrimination performance of a prediction model using a receiver operating characteristic curve.
+Cox model:
 
 ```r
-model <- glm(am ~ mpg + hp + wt, data = mtcars, family = binomial)
-train_data <- mtcars
-train_data$pred_prob <- predict(model, newdata = train_data, type = "response")
+lung_rcs <- survival::lung
+lung_rcs$status_event <- as.integer(lung_rcs$status == 2)
 
-res_train <- plot_roc(
-  data = train_data, 
-  true_var = "am", 
-  pred_var = "pred_prob", 
-  title = "训练集 ROC 曲线 (mtcars)",
-  line_color = "#2E86AB"   # 蓝色
+rcs_cox <- plot_rcs(
+  data = lung_rcs,
+  exposure = "age",
+  outcome = "Surv(time, status_event)",
+  covars = c("sex", "ph.ecog"),
+  model_type = "cox",
+  ylab = "Hazard ratio"
 )
-res_train$plot
+
+rcs_cox$plot
 ```
-![1785227090046](image/README/1785227090046.png)
+
+![Restricted cubic spline plot](image/README/1785227052210.png)
+
+### ROC curve
+
+```r
+roc_model <- glm(
+  am ~ mpg + hp + wt,
+  data = mtcars,
+  family = binomial
+)
+
+roc_data <- mtcars
+roc_data$predicted_probability <- predict(
+  roc_model,
+  newdata = roc_data,
+  type = "response"
+)
+
+roc_result <- plot_roc(
+  data = roc_data,
+  true_var = "am",
+  pred_var = "predicted_probability",
+  title = "Training ROC curve",
+  line_color = "#2E86AB"
+)
+
+roc_result$plot
+```
+
+![ROC curve](image/README/1785227090046.png)
