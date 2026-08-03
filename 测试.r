@@ -330,3 +330,27 @@ data_clean
 
 # 检查每个 record_id 是否只保留一条记录
 anyDuplicated(data_clean$record_id)
+
+
+
+# 表格嵌套
+nested_iris <- iris %>%
+  group_by(Species) %>%
+  nest(.key = "Measurements")
+
+nested_iris %>%
+  filter(Species == "setosa") %>%
+  unnest(Measurements)
+
+
+
+file.edit("~/.Rprofile")
+
+
+
+
+search()
+find("filter")
+sessionInfo()
+
+file.exists(file.path(getwd(), ".Rprofile"))

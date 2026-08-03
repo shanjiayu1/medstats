@@ -16,22 +16,29 @@
 #' @param colors Character vector. Colors for multi-group lines. Must have length >= number of
 #'   groups. Default is `c("#B5D1E8", "#EB938F", "#A3D9A5", "#F2C68F", "#D1B3DF")`.
 #' @param single_color Character string. Color for single-group line. Default is `"#B5D1E8"`.
+#' @param test_method Character string or `NULL`. For a plot with exactly two groups,
+#'   use `"t"` for Welch's two-sample t-test or `"wilcox"` for the Wilcoxon rank-sum
+#'   test at each time point. Significant results are marked with stars. Default is `NULL`.
 #'
 #' @return A list with:
 #'   - `summary_data`: data frame of computed means, SDs, SEs
+#'   - `test_data`: time-specific test results, or `NULL` when no test is requested
 #'   - `plot`: the ggplot object
 #'
 #' @details
 #' Time variable must contain extractable numeric values via `readr::parse_number()`.
 #' For multi-group plots, ensure `colors` has enough values for all groups.
+#' Significance labels use `*` for p < 0.05, `**` for p < 0.01, `***` for
+#' p < 0.001, and `****` for p < 0.0001. Tests require exactly two groups.
 #'
 #' @examples
 #' \dontrun{
 #' plot_meanse(
-#'   data = ChickWeight,
+#'   data = subset(ChickWeight, Diet %in% c(1, 2)),
 #'   target_var = "weight",
 #'   time_var = "Time",
-#'   group_var = "Diet"
+#'   group_var = "Diet",
+#'   test_method = "wilcox"
 #' )
 #' }
 #'
@@ -44,9 +51,25 @@ plot_meanse <- function(data,
                         xlab = "随访时间",
                         ylab = "值",
                         colors = c("#B5D1E8", "#EB938F", "#A3D9A5", "#F2C68F", "#D1B3DF"),
-                        single_color = "#B5D1E8") {
+                        single_color = "#B5D1E8",
+                        test_method = NULL) {
 
   is_single <- is.null(group_var)
+
+  if (!is.null(test_method)) {
+    if (!is.character(test_method) || length(test_method) != 1L) {
+      stop("`test_method` must be `NULL`, \"t\", or \"wilcox\".", call. = FALSE)
+    }
+    test_method <- tolower(test_method)
+    if (test_method %in% c("t.test", "ttest")) test_method <- "t"
+    if (test_method %in% c("wilcox.test", "wilcoxon")) test_method <- "wilcox"
+    if (!test_method %in% c("t", "wilcox")) {
+      stop("`test_method` must be `NULL`, \"t\", or \"wilcox\".", call. = FALSE)
+    }
+    if (is_single) {
+      stop("`test_method` can only be used when `group_var` is supplied.", call. = FALSE)
+    }
+  }
 
   if (is_single) {
     group_var <- "dummy_group_var"
@@ -70,6 +93,99 @@ plot_meanse <- function(data,
     dplyr::mutate(
       time_num = readr::parse_number(as.character(!!time_sym))
     )
+
+  test_df <- NULL
+  annotation_df <- NULL
+
+  if (!is.null(test_method)) {
+    test_input <- data |>
+      dplyr::filter(
+        !is.na(!!group_sym),
+        !is.na(!!target_sym),
+        !is.na(!!time_sym)
+      )
+
+    group_levels <- unique(as.character(test_input[[group_var]]))
+    if (length(group_levels) != 2L) {
+      stop("Time-specific t-tests and Wilcoxon tests require exactly two groups.", call. = FALSE)
+    }
+
+    test_df <- test_input |>
+      dplyr::group_by(!!time_sym) |>
+      dplyr::group_modify(function(.x, .y) {
+        group_values <- as.character(.x[[group_var]])
+        values_1 <- .x[[target_var]][group_values == group_levels[1]]
+        values_2 <- .x[[target_var]][group_values == group_levels[2]]
+
+        p_value <- tryCatch(
+          {
+            if (test_method == "t") {
+              if (length(values_1) < 2L || length(values_2) < 2L) {
+                NA_real_
+              } else {
+                stats::t.test(values_1, values_2)$p.value
+              }
+            } else if (length(values_1) == 0L || length(values_2) == 0L) {
+              NA_real_
+            } else {
+              suppressWarnings(stats::wilcox.test(values_1, values_2, exact = FALSE)$p.value)
+            }
+          },
+          error = function(e) NA_real_
+        )
+
+        data.frame(
+          group1 = group_levels[1],
+          group2 = group_levels[2],
+          n1 = length(values_1),
+          n2 = length(values_2),
+          method = test_method,
+          p_value = p_value,
+          stringsAsFactors = FALSE
+        )
+      }) |>
+      dplyr::ungroup() |>
+      dplyr::mutate(
+        significance = dplyr::case_when(
+          is.na(p_value) ~ "",
+          p_value < 0.0001 ~ "****",
+          p_value < 0.001 ~ "***",
+          p_value < 0.01 ~ "**",
+          p_value < 0.05 ~ "*",
+          TRUE ~ ""
+        ),
+        time_num = readr::parse_number(as.character(!!time_sym))
+      )
+
+    plotted_values <- c(
+      summary_df$target_mean - 1.96 * summary_df$target_se,
+      summary_df$target_mean + 1.96 * summary_df$target_se,
+      summary_df$target_mean
+    )
+    plotted_values <- plotted_values[is.finite(plotted_values)]
+    y_span <- diff(range(plotted_values))
+    annotation_offset <- if (is.finite(y_span) && y_span > 0) {
+      y_span * 0.08
+    } else {
+      max(abs(plotted_values), 1) * 0.08
+    }
+
+    annotation_positions <- summary_df |>
+      dplyr::mutate(
+        .upper = dplyr::if_else(
+          is.finite(target_mean + 1.96 * target_se),
+          target_mean + 1.96 * target_se,
+          target_mean
+        )
+      ) |>
+      dplyr::group_by(!!time_sym) |>
+      dplyr::summarise(y_position = max(.upper, na.rm = TRUE), .groups = "drop")
+
+    annotation_df <- test_df |>
+      dplyr::filter(significance != "") |>
+      dplyr::left_join(annotation_positions, by = time_var) |>
+      dplyr::mutate(y_position = y_position + annotation_offset)
+  }
 
   min_val <- min(summary_df$target_mean - 1.96 * summary_df$target_se, na.rm = TRUE)
   auto_ymin <- ifelse(min_val > 0, min_val - min_val * 0.1, min_val + min_val * 0.1)
@@ -96,6 +212,19 @@ plot_meanse <- function(data,
     ggplot2::theme_classic() +
     ggplot2::theme(ggplot2::margin(t = 15, r = 15, b = 15, l = 15))
 
+  if (!is.null(test_method) && nrow(annotation_df) > 0L) {
+    p <- p +
+      ggplot2::geom_text(
+        data = annotation_df,
+        ggplot2::aes(x = time_num, y = y_position, label = significance),
+        inherit.aes = FALSE,
+        color = "black",
+        size = 6,
+        fontface = "bold",
+        vjust = 0
+      )
+  }
+
   if (is_single) {
     p <- p +
       ggplot2::scale_color_manual(values = single_color) +
@@ -120,7 +249,7 @@ plot_meanse <- function(data,
   }
 
   print(p)
-  return(list(summary_data = summary_df, plot = p))
+  return(list(summary_data = summary_df, test_data = test_df, plot = p))
 }
 
 
@@ -134,6 +263,9 @@ plot_meanse <- function(data,
 #' @param target_var Character string. Name of the continuous variable to categorize.
 #' @param time_var Character string. Name of the time variable for the x-axis.
 #'   Strongly recommended to be a factor with correct level ordering.
+#' @param group_var Character string or `NULL`. Optional grouping variable. When supplied,
+#'   one stacked bar is drawn for each group within every time point, and percentages are
+#'   calculated separately for each time-by-group combination. Default is `NULL`.
 #' @param breaks Numeric vector. Breakpoints for cutting `target_var` into categories.
 #'   Must have one more element than `labels`.
 #' @param labels Character vector. Labels for the categories.
@@ -159,6 +291,17 @@ plot_meanse <- function(data,
 #'   labels = c("<=50g", "51-100g", "101-200g", ">200g"),
 #'   colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F")
 #' )
+#'
+#' # Grouped stacked bars
+#' plot_stacked(
+#'   data = ChickWeight,
+#'   target_var = "weight",
+#'   time_var = "Time",
+#'   breaks = c(-Inf, 50, 100, 200, Inf),
+#'   labels = c("<=50g", "51-100g", "101-200g", ">200g"),
+#'   colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F"),
+#'   group_var = "Diet"
+#' )
 #' }
 #'
 #' @export
@@ -172,14 +315,34 @@ plot_stacked <- function(data,
                          legend_title = "Range",
                          xlab = "随访时间（月）",
                          ylab = "百分比 (%)",
-                         label_threshold = 0.03) {
+                         label_threshold = 0.03,
+                         group_var = NULL) {
+
+  if (length(breaks) != length(labels) + 1L) {
+    stop("`breaks` must contain exactly one more value than `labels`.", call. = FALSE)
+  }
+  if (length(colors) != length(labels)) {
+    stop("`colors` must have the same length as `labels`.", call. = FALSE)
+  }
+  if (!is.null(group_var) && (!is.character(group_var) || length(group_var) != 1L)) {
+    stop("`group_var` must be `NULL` or a single column name.", call. = FALSE)
+  }
 
   target_sym <- rlang::sym(target_var)
   time_sym <- rlang::sym(time_var)
+  is_grouped <- !is.null(group_var)
+  group_sym <- if (is_grouped) rlang::sym(group_var) else NULL
   names(colors) <- labels
 
-  plot_data <- data |>
-    dplyr::filter(!is.na(!!target_sym), !is.na(!!time_sym)) |>
+  analysis_data <- data |>
+    dplyr::filter(!is.na(!!target_sym), !is.na(!!time_sym))
+
+  if (is_grouped) {
+    analysis_data <- analysis_data |>
+      dplyr::filter(!is.na(!!group_sym))
+  }
+
+  analysis_data <- analysis_data |>
     dplyr::mutate(
       category = cut(
         !!target_sym,
@@ -188,18 +351,75 @@ plot_stacked <- function(data,
         right = right
       ),
       category = factor(category, levels = rev(labels))
-    ) |>
-    dplyr::group_by(!!time_sym, category) |>
-    dplyr::summarise(n = dplyr::n(), .groups = "drop") |>
-    dplyr::group_by(!!time_sym) |>
+    )
+
+  if (is_grouped) {
+    plot_data <- analysis_data |>
+      dplyr::group_by(!!time_sym, !!group_sym, category) |>
+      dplyr::summarise(n = dplyr::n(), .groups = "drop") |>
+      dplyr::group_by(!!time_sym, !!group_sym)
+  } else {
+    plot_data <- analysis_data |>
+      dplyr::group_by(!!time_sym, category) |>
+      dplyr::summarise(n = dplyr::n(), .groups = "drop") |>
+      dplyr::group_by(!!time_sym)
+  }
+
+  plot_data <- plot_data |>
     dplyr::mutate(
       total = sum(n),
       pct = n / total,
       label_text = ifelse(pct > label_threshold, sprintf("%.1f%%", pct * 100), "")
-    )
+    ) |>
+    dplyr::ungroup()
 
-  p_bar <- ggplot2::ggplot(plot_data, ggplot2::aes(x = !!time_sym, y = pct, fill = category)) +
-    ggplot2::geom_col(width = 0.75, color = "white", linewidth = 0.5) +
+  if (is_grouped) {
+    ordered_values <- function(x) {
+      if (is.factor(x)) {
+        present <- unique(as.character(x))
+        return(levels(x)[levels(x) %in% present])
+      }
+      as.character(sort(unique(x), na.last = NA))
+    }
+
+    time_levels <- ordered_values(analysis_data[[time_var]])
+    group_levels <- ordered_values(analysis_data[[group_var]])
+    n_groups <- length(group_levels)
+    group_step <- 0.8 / n_groups
+
+    axis_data <- data.frame(
+      .stack_time = rep(time_levels, each = n_groups),
+      .stack_group = rep(group_levels, times = length(time_levels)),
+      .time_index = rep(seq_along(time_levels), each = n_groups),
+      .group_index = rep(seq_along(group_levels), times = length(time_levels)),
+      stringsAsFactors = FALSE
+    ) |>
+      dplyr::mutate(
+        .stack_x = .time_index + (.group_index - (n_groups + 1) / 2) * group_step,
+        .stack_label = paste(.stack_time, .stack_group, sep = "\n")
+      )
+
+    chart_data <- plot_data |>
+      dplyr::mutate(
+        .stack_time = as.character(!!time_sym),
+        .stack_group = as.character(!!group_sym)
+      ) |>
+      dplyr::left_join(
+        axis_data |>
+          dplyr::select(.stack_time, .stack_group, .stack_x),
+        by = c(".stack_time", ".stack_group")
+      )
+
+    x_mapping <- rlang::sym(".stack_x")
+    bar_width <- group_step * 0.9
+  } else {
+    chart_data <- plot_data
+    x_mapping <- time_sym
+    bar_width <- 0.75
+  }
+
+  p_bar <- ggplot2::ggplot(chart_data, ggplot2::aes(x = !!x_mapping, y = pct, fill = category)) +
+    ggplot2::geom_col(width = bar_width, color = "white", linewidth = 0.5) +
     ggplot2::geom_text(
       ggplot2::aes(label = label_text),
       position = ggplot2::position_stack(vjust = 0.5),
@@ -231,6 +451,16 @@ plot_stacked <- function(data,
       axis.line.x = ggplot2::element_line(color = "black", linewidth = 0.8),
       plot.margin = ggplot2::margin(t = 15, r = 15, b = 15, l = 15)
     )
+
+  if (is_grouped) {
+    p_bar <- p_bar +
+      ggplot2::scale_x_continuous(
+        breaks = axis_data$.stack_x,
+        labels = axis_data$.stack_label,
+        expand = ggplot2::expansion(mult = c(0.03, 0.03))
+      ) +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(size = 9))
+  }
 
   print(p_bar)
   return(list(summary_data = plot_data, plot = p_bar))

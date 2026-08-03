@@ -13,7 +13,8 @@ plot_meanse(
   xlab = "随访时间",
   ylab = "值",
   colors = c("#B5D1E8", "#EB938F", "#A3D9A5", "#F2C68F", "#D1B3DF"),
-  single_color = "#B5D1E8"
+  single_color = "#B5D1E8",
+  test_method = NULL
 )
 }
 \arguments{
@@ -37,11 +38,16 @@ numeric values for proper x-axis ordering.}
 groups. Default is \code{c("#B5D1E8", "#EB938F", "#A3D9A5", "#F2C68F", "#D1B3DF")}.}
 
 \item{single_color}{Character string. Color for single-group line. Default is \code{"#B5D1E8"}.}
+
+\item{test_method}{Character string or \code{NULL}. For a plot with exactly two groups,
+use \code{"t"} for Welch's two-sample t-test or \code{"wilcox"} for the Wilcoxon rank-sum
+test at each time point. Significant results are marked with stars. Default is \code{NULL}.}
 }
 \value{
 A list with:
 \itemize{
 \item \code{summary_data}: data frame of computed means, SDs, SEs
+\item \code{test_data}: time-specific test results, or \code{NULL} when no test is requested
 \item \code{plot}: the ggplot object
 }
 }
@@ -52,14 +58,17 @@ interval error bars. Supports both single-group and multi-group comparisons.
 \details{
 Time variable must contain extractable numeric values via \code{readr::parse_number()}.
 For multi-group plots, ensure \code{colors} has enough values for all groups.
+Significance labels use \code{*} for p < 0.05, \verb{**} for p < 0.01, \verb{***} for
+p < 0.001, and \verb{****} for p < 0.0001. Tests require exactly two groups.
 }
 \examples{
 \dontrun{
 plot_meanse(
-  data = ChickWeight,
+  data = subset(ChickWeight, Diet \%in\% c(1, 2)),
   target_var = "weight",
   time_var = "Time",
-  group_var = "Diet"
+  group_var = "Diet",
+  test_method = "wilcox"
 )
 }
 

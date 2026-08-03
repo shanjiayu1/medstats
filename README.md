@@ -240,6 +240,23 @@ meanse_result <- plot_meanse(
 )
 ```
 
+For two-group data, set `test_method = "t"` or `test_method = "wilcox"` to
+compare the groups at every time point. Significant results are marked above
+the corresponding time point, and the p-values are returned in `test_data`.
+
+```r
+two_diet_result <- plot_meanse(
+  data = dplyr::filter(growth_data, diet_label %in% c("Diet 1", "Diet 2")),
+  target_var = "weight",
+  time_var = "time_label",
+  group_var = "diet_label",
+  test_method = "wilcox",
+  legend_title = "Diet"
+)
+
+two_diet_result$test_data
+```
+
 ![Mean and standard error line plot](image/README/1785225730190.png)
 
 ### Stacked percentage bar plot
@@ -255,12 +272,17 @@ stacked_result <- plot_stacked(
   data = stacked_data,
   target_var = "weight",
   time_var = "Time",
+  group_var = "Diet",
   breaks = c(-Inf, 100, 200, 300, Inf),
   labels = c("≤100 g", "101–200 g", "201–300 g", ">300 g"),
   colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F"),
   legend_title = "Weight range"
 )
 ```
+
+Set `group_var = NULL` (the default) to draw one stacked bar per time point.
+When a grouping column is supplied, percentages are calculated within each
+time-by-group combination and the group stacks are drawn side by side.
 
 ![Stacked percentage bar plot](image/README/1785225958301.png)
 

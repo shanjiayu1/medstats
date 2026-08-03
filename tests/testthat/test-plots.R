@@ -33,6 +33,73 @@ test_that("plot_stacked returns list with plot and data", {
   expect_s3_class(result$plot, "ggplot")
 })
 
+test_that("plot_meanse performs time-specific two-group tests", {
+  test_data <- data.frame(
+    time = rep(c("Day 0", "Day 7"), each = 20),
+    group = rep(rep(c("Control", "Treatment"), each = 10), times = 2),
+    value = c(
+      1:10, 21:30,
+      11:20, 12:21
+    )
+  )
+
+  t_result <- plot_meanse(
+    data = test_data,
+    target_var = "value",
+    time_var = "time",
+    group_var = "group",
+    test_method = "t",
+    xlab = "Time",
+    ylab = "Value"
+  )
+  wilcox_result <- plot_meanse(
+    data = test_data,
+    target_var = "value",
+    time_var = "time",
+    group_var = "group",
+    test_method = "wilcox",
+    xlab = "Time",
+    ylab = "Value"
+  )
+
+  expect_equal(nrow(t_result$test_data), 2L)
+  expect_equal(t_result$test_data$method, rep("t", 2L))
+  expect_equal(wilcox_result$test_data$method, rep("wilcox", 2L))
+  expect_equal(t_result$test_data$significance[1], "****")
+  expect_equal(t_result$test_data$significance[2], "")
+  expect_no_error(ggplot2::ggplot_build(t_result$plot))
+  expect_no_error(ggplot2::ggplot_build(wilcox_result$plot))
+})
+
+test_that("plot_stacked supports grouped stacked bars", {
+  test_data <- ChickWeight |>
+    dplyr::filter(Time %in% c(0, 10, 20)) |>
+    dplyr::mutate(
+      Time_str = factor(
+        paste0("Day ", Time),
+        levels = c("Day 0", "Day 10", "Day 20")
+      )
+    )
+
+  result <- plot_stacked(
+    data = test_data,
+    target_var = "weight",
+    time_var = "Time_str",
+    breaks = c(-Inf, 50, 100, 200, Inf),
+    labels = c("<=50", "51-100", "101-200", ">200"),
+    colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F"),
+    group_var = "Diet"
+  )
+
+  pct_sums <- result$summary_data |>
+    dplyr::group_by(Time_str, Diet) |>
+    dplyr::summarise(pct_sum = sum(pct), .groups = "drop")
+
+  expect_true("Diet" %in% names(result$summary_data))
+  expect_equal(pct_sums$pct_sum, rep(1, nrow(pct_sums)))
+  expect_no_error(ggplot2::ggplot_build(result$plot))
+})
+
 test_that("plot_roc returns list with correct elements", {
   skip_if_not_installed("pROC")
   model <- glm(am ~ mpg + hp + wt, data = mtcars, family = binomial)
