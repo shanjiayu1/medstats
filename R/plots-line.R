@@ -276,6 +276,8 @@ plot_meanse <- function(data,
 #' @param ylab Character string. Y-axis label. Default is `"百分比 (%)"`.
 #' @param label_threshold Numeric. Minimum proportion to display percentage labels inside bars.
 #'   Default is `0.03`.
+#' @param label_size Numeric. Font size of percentage labels inside the bars.
+#'   Default is `4`.
 #'
 #' @return A list with:
 #'   - `summary_data`: data frame of computed percentages
@@ -316,7 +318,8 @@ plot_stacked <- function(data,
                          xlab = "随访时间（月）",
                          ylab = "百分比 (%)",
                          label_threshold = 0.03,
-                         group_var = NULL) {
+                         group_var = NULL,
+                         label_size = 4) {
 
   if (length(breaks) != length(labels) + 1L) {
     stop("`breaks` must contain exactly one more value than `labels`.", call. = FALSE)
@@ -326,6 +329,10 @@ plot_stacked <- function(data,
   }
   if (!is.null(group_var) && (!is.character(group_var) || length(group_var) != 1L)) {
     stop("`group_var` must be `NULL` or a single column name.", call. = FALSE)
+  }
+  if (!is.numeric(label_size) || length(label_size) != 1L ||
+      !is.finite(label_size) || label_size <= 0) {
+    stop("`label_size` must be a single positive number.", call. = FALSE)
   }
 
   target_sym <- rlang::sym(target_var)
@@ -424,7 +431,7 @@ plot_stacked <- function(data,
       ggplot2::aes(label = label_text),
       position = ggplot2::position_stack(vjust = 0.5),
       color = "white",
-      size = 4,
+      size = label_size,
       family = "sans"
     ) +
     ggplot2::scale_fill_manual(values = colors) +

@@ -26,11 +26,13 @@ test_that("plot_stacked returns list with plot and data", {
     time_var = "Time_str",
     breaks = c(-Inf, 50, 100, 200, Inf),
     labels = c("<=50", "51-100", "101-200", ">200"),
-    colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F")
+    colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F"),
+    label_size = 5.5
   )
   expect_type(result, "list")
   expect_true("plot" %in% names(result))
   expect_s3_class(result$plot, "ggplot")
+  expect_equal(result$plot$layers[[2]]$aes_params$size, 5.5)
 })
 
 test_that("plot_meanse performs time-specific two-group tests", {

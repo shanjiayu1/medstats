@@ -276,13 +276,15 @@ stacked_result <- plot_stacked(
   breaks = c(-Inf, 100, 200, 300, Inf),
   labels = c("≤100 g", "101–200 g", "201–300 g", ">300 g"),
   colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F"),
-  legend_title = "Weight range"
+  legend_title = "Weight range",
+  label_size = 4.5
 )
 ```
 
 Set `group_var = NULL` (the default) to draw one stacked bar per time point.
 When a grouping column is supplied, percentages are calculated within each
 time-by-group combination and the group stacks are drawn side by side.
+Use `label_size` to adjust the percentage-label font size inside the bars.
 
 ![Stacked percentage bar plot](image/README/1785225958301.png)
 
