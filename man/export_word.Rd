@@ -2,27 +2,44 @@
 % Please edit documentation in R/format.R
 \name{export_word}
 \alias{export_word}
-\title{Export multiple tables to a Word document}
+\title{Export tables and plots to a Word document}
 \usage{
-export_word(data_list, table_titles, output_file = "Tables_Output.docx")
+export_word(
+  data_list,
+  table_titles,
+  output_file = "Tables_Output.docx",
+  figure_width = 6,
+  figure_height = 5,
+  figure_res = 300
+)
 }
 \arguments{
-\item{data_list}{A list of table objects. Each element can be a \code{data.frame},
-\code{gtsummary}, or \code{flextable} object.}
+\item{data_list}{A list of table or plot objects. Tables can be \code{data.frame},
+\code{gtsummary}, or \code{flextable} objects. Plots can be \code{ggplot} objects, result
+lists containing a \code{ggplot} in \verb{$plot}, \code{officer::plot_instr} objects, or
+supported image file paths.}
 
-\item{table_titles}{A character vector of table titles. Must have the same length
+\item{table_titles}{A character vector of item titles. Must have the same length
 as \code{data_list}.}
 
 \item{output_file}{A string specifying the output file path. Must end with \code{.docx}.
 Default is \code{"Tables_Output.docx"}.}
+
+\item{figure_width}{Width of exported plots in inches. Default is \code{6}.}
+
+\item{figure_height}{Height of exported plots in inches. Default is \code{5}.}
+
+\item{figure_res}{Resolution of exported \code{ggplot} objects in pixels per inch.
+Default is \code{300}.}
 }
 \value{
 Invisibly returns the \code{officer::rdocx} document object.
 }
 \description{
-Takes a list of tables (data.frames, gtsummary objects, or flextable objects),
-formats each one using \code{\link{format_flextable}}, and exports them into a single
-\code{.docx} file with custom table titles.
+Takes a list of tables and plots and exports them into a single \code{.docx} file.
+Tables are formatted with \code{\link[=format_flextable]{format_flextable()}}. Plots can be \code{ggplot} objects,
+result lists containing a \code{ggplot} in \verb{$plot}, base R plot instructions made
+with \code{\link[officer:plot_instr]{officer::plot_instr()}}, or paths to PNG, JPEG, BMP, GIF, or TIFF files.
 }
 \examples{
 \dontrun{
@@ -33,6 +50,19 @@ export_word(
   table_titles = c("Table 1: mtcars", "Table 2: iris"),
   output_file = "my_tables.docx"
 )
+
+p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
+  ggplot2::geom_point()
+export_word(
+  data_list = list(head(mtcars), p),
+  table_titles = c("Table 1: mtcars", "Figure 1: MPG and weight"),
+  output_file = "tables_and_plots.docx"
+)
+
+base_plot <- officer::plot_instr(
+  graphics::plot(mtcars$wt, mtcars$mpg)
+)
+export_word(list(base_plot), "Figure 1: Base R plot", "base_plot.docx")
 }
 
 }

@@ -46,17 +46,25 @@ tbl <- tbl_summary(trial, include = c(age, grade, trt), by = trt)
 ft <- format_flextable(tbl)
 ```
 
-## Export tables to Word
+## Export tables and plots to Word
 
-Use `export_word()` to batch-export multiple tables into a single `.docx` file:
+Use `export_word()` to batch-export tables and plots into a single `.docx` file:
 
 ```{r eval=FALSE}
+p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
+  ggplot2::geom_point()
+
 export_word(
-  data_list = list(head(mtcars), head(iris)),
-  table_titles = c("Table 1: mtcars", "Table 2: iris"),
-  output_file = "my_tables.docx"
+  data_list = list(head(mtcars), p),
+  table_titles = c("Table 1: mtcars", "Figure 1: MPG and weight"),
+  output_file = "tables_and_plots.docx",
+  figure_width = 6,
+  figure_height = 5
 )
 ```
+
+Package result lists containing a `$plot` element, supported image file paths,
+and base R plots wrapped with `officer::plot_instr()` can also be exported.
 
 # Data Processing
 

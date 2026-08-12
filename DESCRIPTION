@@ -5,7 +5,7 @@ Authors@R: person("陕嘉宇", email = "user@example.com", role = c("aut", "cre"
 Description: A comprehensive R package for medical statistics, providing streamlined functions for
     baseline tables, regression analysis (GLM, Cox), GEE repeated measures, and publication-ready
     plots (KM curves, forest plots, RCS splines, ROC curves, Sankey diagrams, line/bar charts).
-    Also includes utilities for formatting flextable objects and exporting tables to Word documents.
+    Also includes utilities for formatting flextable objects and exporting tables and plots to Word documents.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
