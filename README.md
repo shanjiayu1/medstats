@@ -12,7 +12,7 @@ high-quality visualization.
 - Fit generalized linear models, Cox models, and GEE repeated-measures models.
 - Produce Kaplan–Meier curves, forest plots, restricted cubic spline plots,
   ROC curves, Sankey diagrams, and longitudinal summary plots.
-- Export multiple formatted tables to a single Word document.
+- Export formatted tables and R plots to a single Word document.
 
 ## Installation
 
@@ -37,7 +37,7 @@ tests, and vignettes.
 | Category        | Function                      | Description                                                                                              |
 | --------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Tables          | `format_flextable()`        | Apply a publication-ready three-line table style to a data frame,`gtsummary`, or `flextable` object. |
-| Tables          | `export_word()`             | Export multiple formatted tables to one Word document.                                                   |
+| Tables          | `export_word()`             | Export formatted tables and plots to one Word document.                                                  |
 | Data processing | `long_to_surv_data()`       | Convert longitudinal records into one-row-per-subject survival data.                                     |
 | Data processing | `merge_duplicate_records()` | Merge duplicate records using the first non-missing value in each field.                                 |
 | Data processing | `make_table1()`             | Create a baseline characteristics table with optional group comparisons.                                 |
@@ -72,21 +72,30 @@ tbl <- gtsummary::tbl_summary(
 ft_summary <- format_flextable(tbl)
 ```
 
-### Export tables to Word
+### Export tables and plots to Word
 
 ```r
+p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
+  ggplot2::geom_point()
+
 export_word(
   data_list = list(
     head(mtcars),
-    head(iris)
+    p
   ),
   table_titles = c(
     "Table 1. mtcars dataset",
-    "Table 2. iris dataset"
+    "Figure 1. MPG and weight"
   ),
-  output_file = "my_tables.docx"
+  output_file = "tables_and_plots.docx",
+  figure_width = 6,
+  figure_height = 5
 )
 ```
+
+The function also accepts result objects returned by package functions such as
+`plot_meanse()` and `plot_roc()` (their `$plot` element is used automatically),
+image file paths, and base R plots wrapped in `officer::plot_instr()`.
 
 ## Data processing
 
