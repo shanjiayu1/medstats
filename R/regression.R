@@ -230,7 +230,7 @@ run_glm_auto <- function(data, vars, outcome_var, covars = NULL, family = "binom
     var_quoted <- quote_var(var)
     outcome_quoted <- quote_var(outcome_var)
     if (!is.null(covars)) {
-      covars_quoted <- sapply(covars, quote_var)
+      covars_quoted <- vapply(covars, quote_var, character(1))
       covar_part <- paste(covars_quoted, collapse = " + ")
       f <- as.formula(paste0(outcome_quoted, " ~ ", var_quoted, " + ", covar_part))
     } else {
@@ -239,10 +239,22 @@ run_glm_auto <- function(data, vars, outcome_var, covars = NULL, family = "binom
     stats::glm(f, data = data, family = family)
   }
 
-  tidy_model <- function(model, var) {
-    broom::tidy(model, conf.int = TRUE) |>
+  tidy_model <- function(model) {
+    # summary.glm() uses normal tests for binomial/Poisson models and t tests
+    # when dispersion is estimated. Use the corresponding critical value so
+    # that the Wald confidence interval and p-value use the same method.
+    uses_normal <- model$family$family %in% c("binomial", "poisson")
+    critical_value <- if (uses_normal) {
+      stats::qnorm(0.975)
+    } else {
+      stats::qt(0.975, df = stats::df.residual(model))
+    }
+
+    broom::tidy(model, conf.int = FALSE) |>
       dplyr::filter(term != "(Intercept)") |>
       dplyr::mutate(
+        conf.low = estimate - critical_value * std.error,
+        conf.high = estimate + critical_value * std.error,
         est_val = if (is_linear) estimate else exp(estimate),
         lci_val = if (is_linear) conf.low else exp(conf.low),
         uci_val = if (is_linear) conf.high else exp(conf.high),
@@ -255,33 +267,95 @@ run_glm_auto <- function(data, vars, outcome_var, covars = NULL, family = "binom
       dplyr::select(term, Res_CI, p.value)
   }
 
+  variable_terms <- function(model, var) {
+    model_matrix <- stats::model.matrix(model)
+    term_assign <- attr(model_matrix, "assign")
+    term_labels <- attr(stats::terms(model), "term.labels")
+    var_clean <- gsub("`", "", var)
+    clean_labels <- gsub("`", "", term_labels)
+    term_number <- which(clean_labels == var_clean)
+
+    if (length(term_number) == 0L) return(character())
+    colnames(model_matrix)[term_assign %in% term_number]
+  }
+
+  results_for_variable <- function(model, var) {
+    model_terms <- variable_terms(model, var)
+    tidy_model(model) |>
+      dplyr::filter(term %in% model_terms)
+  }
+
+  factor_results <- function(model, var) {
+    var_clean <- gsub("`", "", var)
+    result <- results_for_variable(model, var)
+    quoted_prefix <- paste0("`", var_clean, "`")
+
+    strip_prefix <- function(term) {
+      if (startsWith(term, quoted_prefix)) {
+        substring(term, nchar(quoted_prefix) + 1L)
+      } else if (startsWith(term, var_clean)) {
+        substring(term, nchar(var_clean) + 1L)
+      } else {
+        term
+      }
+    }
+
+    result <- result |>
+      dplyr::mutate(term = vapply(term, strip_prefix, character(1)))
+
+    model_levels <- model$xlevels[[var_clean]]
+    if (is.null(model_levels) || length(model_levels) == 0L) return(result)
+
+    reference_row <- tibble::tibble(
+      term = model_levels[1],
+      Res_CI = ref_text,
+      p.value = ""
+    )
+    dplyr::bind_rows(reference_row, result)
+  }
+
   result_list <- purrr::map(vars, function(var) {
     mod1 <- run_single(var)
     mod2 <- run_multi(var)
-    res1 <- tidy_model(mod1, var)
-    res2 <- tidy_model(mod2, var)
-
-    merged <- res1 |>
-      dplyr::left_join(res2, by = "term", suffix = c("_m1", "_m2"))
-
     var_clean <- gsub("`", "", var)
-    if (is.factor(data[[var_clean]]) || is.character(data[[var_clean]])) {
-      merged <- merged |> dplyr::mutate(term = stringr::str_remove(term, var_clean))
-      val_vec <- data[[var_clean]]
-      if (is.character(val_vec)) val_vec <- as.factor(val_vec)
-      ref <- levels(val_vec)[1]
+    is_categorical <- is.factor(data[[var_clean]]) ||
+      is.character(data[[var_clean]]) || is.logical(data[[var_clean]])
 
-      ref_row <- tibble::tibble(
-        term = c(var_clean, ref),
-        Res_CI_m1 = c("", ref_text),
-        p.value_m1 = c("", ""),
-        Res_CI_m2 = c("", ref_text),
-        p.value_m2 = c("", "")
+    if (is_categorical) {
+      res1 <- factor_results(mod1, var)
+      res2 <- factor_results(mod2, var)
+      merged <- dplyr::full_join(
+        res1,
+        res2,
+        by = "term",
+        suffix = c("_m1", "_m2")
       )
-      merged <- dplyr::bind_rows(ref_row, merged)
-      return(merged)
+
+      level_order <- unique(c(
+        mod1$xlevels[[var_clean]],
+        mod2$xlevels[[var_clean]],
+        merged$term
+      ))
+      merged <- merged |>
+        dplyr::arrange(match(term, level_order))
+
+      header_row <- tibble::tibble(
+        term = var_clean,
+        Res_CI_m1 = "",
+        p.value_m1 = "",
+        Res_CI_m2 = "",
+        p.value_m2 = ""
+      )
+      dplyr::bind_rows(header_row, merged)
     } else {
-      return(merged)
+      res1 <- results_for_variable(mod1, var)
+      res2 <- results_for_variable(mod2, var)
+      dplyr::full_join(
+        res1,
+        res2,
+        by = "term",
+        suffix = c("_m1", "_m2")
+      )
     }
   })
 

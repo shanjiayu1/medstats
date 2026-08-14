@@ -88,6 +88,19 @@ export_word(
 )
 ```
 
+Plots and existing PNG files can be mixed with tables. Plots are rendered on a
+9 by 7 inch canvas by default and then scaled to the usable Word page width.
+For PNG files, omit `word_height` to preserve the original aspect ratio:
+
+```r
+export_word(
+  data_list = list(table1, "ADL_plot.png"),
+  table_titles = c("Table 1", "Figure 1"),
+  output_file = "results.docx",
+  word_width = 6.2
+)
+```
+
 ## Data processing
 
 ### Convert longitudinal data to survival format

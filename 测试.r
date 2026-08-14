@@ -330,3 +330,14 @@ data_clean
 
 # 检查每个 record_id 是否只保留一条记录
 anyDuplicated(data_clean$record_id)
+
+
+
+model <- glm(
+  am ~ hp + wt,
+  data = mtcars,
+  family = binomial(link = "logit")
+)
+confint(model)
+confint.glm(model)
+confint.default(model)

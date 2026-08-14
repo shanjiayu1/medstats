@@ -2,36 +2,62 @@
 % Please edit documentation in R/format.R
 \name{export_word}
 \alias{export_word}
-\title{Export multiple tables to a Word document}
+\title{Export tables and plots to a Word document}
 \usage{
-export_word(data_list, table_titles, output_file = "Tables_Output.docx")
+export_word(
+  data_list,
+  table_titles,
+  output_file = "Tables_Output.docx",
+  figure_width = 9,
+  figure_height = 7,
+  figure_res = 300,
+  word_width = NULL,
+  word_height = NULL
+)
 }
 \arguments{
-\item{data_list}{A list of table objects. Each element can be a \code{data.frame},
-\code{gtsummary}, or \code{flextable} object.}
+\item{data_list}{A list of table or plot objects. Tables can be \code{data.frame},
+\code{gtsummary}, or \code{flextable} objects. Plots can be \code{ggplot} objects, result
+lists containing a \code{ggplot} in \verb{$plot}, \code{officer::plot_instr} objects, or
+paths to PNG, JPEG, BMP, GIF, or TIFF files.}
 
-\item{table_titles}{A character vector of table titles. Must have the same length
-as \code{data_list}.}
+\item{table_titles}{A character vector of item titles. Must have the same
+length as \code{data_list}.}
 
-\item{output_file}{A string specifying the output file path. Must end with \code{.docx}.
-Default is \code{"Tables_Output.docx"}.}
+\item{output_file}{Output \code{.docx} path. Default is \code{"Tables_Output.docx"}.}
+
+\item{figure_width}{Width in inches used to render plots. Default is \code{9}.}
+
+\item{figure_height}{Height in inches used to render plots. Default is \code{7}.}
+
+\item{figure_res}{Plot resolution in pixels per inch. Default is \code{300}.}
+
+\item{word_width}{Display width in inches inside Word. When \code{NULL}, the usable
+page width is calculated from the document page size and margins.}
+
+\item{word_height}{Display height in inches inside Word. When \code{NULL}, it is
+calculated from \code{word_width} while preserving the rendering aspect ratio.
+For PNG files, the original pixel dimensions are read automatically.}
 }
 \value{
 Invisibly returns the \code{officer::rdocx} document object.
 }
 \description{
-Takes a list of tables (data.frames, gtsummary objects, or flextable objects),
-formats each one using \code{\link{format_flextable}}, and exports them into a single
-\code{.docx} file with custom table titles.
+Exports tables and plots into one \code{.docx} file. Plot rendering size is
+independent of its displayed size in Word: by default, a plot is rendered
+at 9 by 7 inches and then proportionally scaled to the usable page width.
+This preserves the original plot layout and prevents labels from overlapping
+when the image is fitted to a Word page.
 }
 \examples{
 \dontrun{
-df1 <- head(mtcars[, 1:5])
-df2 <- head(iris)
+p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
+  ggplot2::geom_point()
+
 export_word(
-  data_list = list(df1, df2),
-  table_titles = c("Table 1: mtcars", "Table 2: iris"),
-  output_file = "my_tables.docx"
+  data_list = list(head(mtcars), p),
+  table_titles = c("Table 1: mtcars", "Figure 1: MPG and weight"),
+  output_file = "tables_and_plots.docx"
 )
 }
 
