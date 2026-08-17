@@ -20,7 +20,7 @@
 #'   use `"t"` for Welch's two-sample t-test or `"wilcox"` for the Wilcoxon rank-sum
 #'   test at each time point. Significant results are marked with stars. Default is `NULL`.
 #'
-#' @return A list with:
+#' @return Invisibly returns a list with:
 #'   - `summary_data`: data frame of computed means, SDs, SEs
 #'   - `test_data`: time-specific test results, or `NULL` when no test is requested
 #'   - `plot`: the ggplot object
@@ -210,7 +210,7 @@ plot_meanse <- function(data,
                               ylim = c(auto_ymin, NA), clip = "off") +
     ggplot2::labs(x = xlab, y = ylab) +
     ggplot2::theme_classic() +
-    ggplot2::theme(ggplot2::margin(t = 15, r = 15, b = 15, l = 15))
+    ggplot2::theme(plot.margin = ggplot2::margin(t = 15, r = 15, b = 15, l = 15))
 
   if (!is.null(test_method) && nrow(annotation_df) > 0L) {
     p <- p +
@@ -249,7 +249,7 @@ plot_meanse <- function(data,
   }
 
   print(p)
-  return(list(summary_data = summary_df, test_data = test_df, plot = p))
+  return(invisible(list(summary_data = summary_df, test_data = test_df, plot = p)))
 }
 
 
@@ -279,7 +279,7 @@ plot_meanse <- function(data,
 #' @param label_size Numeric. Font size of percentage labels inside the bars.
 #'   Default is `4`.
 #'
-#' @return A list with:
+#' @return Invisibly returns a list with:
 #'   - `summary_data`: data frame of computed percentages
 #'   - `plot`: the ggplot object
 #'
@@ -470,5 +470,5 @@ plot_stacked <- function(data,
   }
 
   print(p_bar)
-  return(list(summary_data = plot_data, plot = p_bar))
+  return(invisible(list(summary_data = plot_data, plot = p_bar)))
 }
