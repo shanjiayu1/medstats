@@ -15,7 +15,9 @@ plot_stacked(
   legend_title = "Range",
   xlab = "随访时间（月）",
   ylab = "百分比 (\%)",
-  label_threshold = 0.03
+  label_threshold = 0.03,
+  group_var = NULL,
+  label_size = 4
 )
 }
 \arguments{
@@ -43,6 +45,13 @@ Must have one more element than \code{labels}.}
 
 \item{label_threshold}{Numeric. Minimum proportion to display percentage labels inside bars.
 Default is \code{0.03}.}
+
+\item{group_var}{Character string or \code{NULL}. Optional grouping variable. When supplied,
+one stacked bar is drawn for each group within every time point, and percentages are
+calculated separately for each time-by-group combination. Default is \code{NULL}.}
+
+\item{label_size}{Numeric. Font size of percentage labels inside the bars.
+Default is \code{4}.}
 }
 \value{
 A list with:
@@ -64,6 +73,17 @@ plot_stacked(
   breaks = c(-Inf, 50, 100, 200, Inf),
   labels = c("<=50g", "51-100g", "101-200g", ">200g"),
   colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F")
+)
+
+# Grouped stacked bars
+plot_stacked(
+  data = ChickWeight,
+  target_var = "weight",
+  time_var = "Time",
+  breaks = c(-Inf, 50, 100, 200, Inf),
+  labels = c("<=50g", "51-100g", "101-200g", ">200g"),
+  colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F"),
+  group_var = "Diet"
 )
 }
 

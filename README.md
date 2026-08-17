@@ -12,7 +12,7 @@ high-quality visualization.
 - Fit generalized linear models, Cox models, and GEE repeated-measures models.
 - Produce Kaplan–Meier curves, forest plots, restricted cubic spline plots,
   ROC curves, Sankey diagrams, and longitudinal summary plots.
-- Export multiple formatted tables to a single Word document.
+- Export formatted tables and R plots to a single Word document.
 
 ## Installation
 
@@ -37,7 +37,7 @@ tests, and vignettes.
 | Category        | Function                      | Description                                                                                              |
 | --------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Tables          | `format_flextable()`        | Apply a publication-ready three-line table style to a data frame,`gtsummary`, or `flextable` object. |
-| Tables          | `export_word()`             | Export multiple formatted tables to one Word document.                                                   |
+| Tables          | `export_word()`             | Export formatted tables and plots to one Word document.                                                  |
 | Data processing | `long_to_surv_data()`       | Convert longitudinal records into one-row-per-subject survival data.                                     |
 | Data processing | `merge_duplicate_records()` | Merge duplicate records using the first non-missing value in each field.                                 |
 | Data processing | `make_table1()`             | Create a baseline characteristics table with optional group comparisons.                                 |
@@ -72,19 +72,24 @@ tbl <- gtsummary::tbl_summary(
 ft_summary <- format_flextable(tbl)
 ```
 
-### Export tables to Word
+### Export tables and plots to Word
 
 ```r
+p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
+  ggplot2::geom_point()
+
 export_word(
   data_list = list(
     head(mtcars),
-    head(iris)
+    p
   ),
   table_titles = c(
     "Table 1. mtcars dataset",
-    "Table 2. iris dataset"
+    "Figure 1. MPG and weight"
   ),
-  output_file = "my_tables.docx"
+  output_file = "tables_and_plots.docx",
+  figure_width = 6,
+  figure_height = 5
 )
 ```
 
@@ -100,6 +105,10 @@ export_word(
   word_width = 6.2
 )
 ```
+
+The function also accepts result objects returned by package functions such as
+`plot_meanse()` and `plot_roc()` (their `$plot` element is used automatically),
+image file paths, and base R plots wrapped in `officer::plot_instr()`.
 
 ## Data processing
 
@@ -253,6 +262,23 @@ meanse_result <- plot_meanse(
 )
 ```
 
+For two-group data, set `test_method = "t"` or `test_method = "wilcox"` to
+compare the groups at every time point. Significant results are marked above
+the corresponding time point, and the p-values are returned in `test_data`.
+
+```r
+two_diet_result <- plot_meanse(
+  data = dplyr::filter(growth_data, diet_label %in% c("Diet 1", "Diet 2")),
+  target_var = "weight",
+  time_var = "time_label",
+  group_var = "diet_label",
+  test_method = "wilcox",
+  legend_title = "Diet"
+)
+
+two_diet_result$test_data
+```
+
 ![Mean and standard error line plot](image/README/1785225730190.png)
 
 ### Stacked percentage bar plot
@@ -268,12 +294,19 @@ stacked_result <- plot_stacked(
   data = stacked_data,
   target_var = "weight",
   time_var = "Time",
+  group_var = "Diet",
   breaks = c(-Inf, 100, 200, 300, Inf),
   labels = c("≤100 g", "101–200 g", "201–300 g", ">300 g"),
   colors = c("#B5D1E8", "#A3D9A5", "#F2C68F", "#EB938F"),
-  legend_title = "Weight range"
+  legend_title = "Weight range",
+  label_size = 4.5
 )
 ```
+
+Set `group_var = NULL` (the default) to draw one stacked bar per time point.
+When a grouping column is supplied, percentages are calculated within each
+time-by-group combination and the group stacks are drawn side by side.
+Use `label_size` to adjust the percentage-label font size inside the bars.
 
 ![Stacked percentage bar plot](image/README/1785225958301.png)
 

@@ -59,6 +59,19 @@ export_word(
   table_titles = c("Table 1: mtcars", "Figure 1: MPG and weight"),
   output_file = "tables_and_plots.docx"
 )
+
+p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
+  ggplot2::geom_point()
+export_word(
+  data_list = list(head(mtcars), p),
+  table_titles = c("Table 1: mtcars", "Figure 1: MPG and weight"),
+  output_file = "tables_and_plots.docx"
+)
+
+base_plot <- officer::plot_instr(
+  graphics::plot(mtcars$wt, mtcars$mpg)
+)
+export_word(list(base_plot), "Figure 1: Base R plot", "base_plot.docx")
 }
 
 }

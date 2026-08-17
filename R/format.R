@@ -52,6 +52,7 @@ format_flextable <- function(ft_data) {
 
 
 #' Export tables and plots to a Word document
+#' Export tables and plots to a Word document
 #'
 #' @description
 #' Exports tables and plots into one `.docx` file. Plot rendering size is
