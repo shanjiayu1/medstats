@@ -75,6 +75,8 @@ ft_summary <- format_flextable(tbl)
 ### Export tables and plots to Word
 
 ```r
+export_word(table1, table2, "two_tables.docx")
+
 p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
   ggplot2::geom_point()
 
@@ -92,6 +94,10 @@ export_word(
   figure_height = 5
 )
 ```
+
+When objects are passed directly or `table_titles` is omitted, titles are
+generated automatically (`Table 1`, `Table 2`, `Figure 1`, ...). Table titles
+appear above tables; figure titles appear below figures.
 
 Plots and existing PNG files can be mixed with tables. Plots are rendered on a
 9 by 7 inch canvas by default and then scaled to the usable Word page width.

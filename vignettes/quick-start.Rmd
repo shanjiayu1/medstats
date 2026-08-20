@@ -51,6 +51,8 @@ ft <- format_flextable(tbl)
 Use `export_word()` to batch-export tables and plots into a single `.docx` file:
 
 ```{r eval=FALSE}
+export_word(table1, table2, "two_tables.docx")
+
 p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
   ggplot2::geom_point()
 
@@ -62,6 +64,9 @@ export_word(
   figure_height = 5
 )
 ```
+
+If titles are omitted, they are generated automatically. Table titles appear
+above tables and figure titles appear below figures.
 
 Package result lists containing a `$plot` element, supported image file paths,
 and base R plots wrapped with `officer::plot_instr()` can also be exported.

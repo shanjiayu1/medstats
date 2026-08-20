@@ -52,7 +52,6 @@ format_flextable <- function(ft_data) {
 
 
 #' Export tables and plots to a Word document
-#' Export tables and plots to a Word document
 #'
 #' @description
 #' Exports tables and plots into one `.docx` file. Plot rendering size is
@@ -61,12 +60,15 @@ format_flextable <- function(ft_data) {
 #' This preserves the original plot layout and prevents labels from overlapping
 #' when the image is fitted to a Word page.
 #'
-#' @param data_list A list of table or plot objects. Tables can be `data.frame`,
-#'   `gtsummary`, or `flextable` objects. Plots can be `ggplot` objects, result
-#'   lists containing a `ggplot` in `$plot`, `officer::plot_instr` objects, or
-#'   paths to PNG, JPEG, BMP, GIF, or TIFF files.
-#' @param table_titles A character vector of item titles. Must have the same
-#'   length as `data_list`.
+#' @param data_list A table or plot object, or a list of such objects. Tables can
+#'   be `data.frame`, `gtsummary`, or `flextable` objects. Plots can be `ggplot`
+#'   objects, result lists containing a `ggplot` in `$plot`,
+#'   `officer::plot_instr` objects, or paths to PNG, JPEG, BMP, GIF, or TIFF
+#'   files.
+#' @param table_titles Either a character vector of item titles or a second
+#'   table/plot object. When omitted, titles are generated automatically as
+#'   `"Table 1"`, `"Table 2"`, `"Figure 1"`, and so on. Table titles are placed
+#'   above tables and figure titles below figures.
 #' @param output_file Output `.docx` path. Default is `"Tables_Output.docx"`.
 #' @param figure_width Width in inches used to render plots. Default is `9`.
 #' @param figure_height Height in inches used to render plots. Default is `7`.
@@ -89,24 +91,102 @@ format_flextable <- function(ft_data) {
 #'   table_titles = c("Table 1: mtcars", "Figure 1: MPG and weight"),
 #'   output_file = "tables_and_plots.docx"
 #' )
+#'
+#' # Two objects can also be passed directly; titles are generated automatically.
+#' export_word(head(mtcars), head(iris), "two_tables.docx")
 #' }
 #'
 #' @export
-export_word <- function(data_list, table_titles, output_file = "Tables_Output.docx",
+export_word <- function(data_list, table_titles = NULL,
+                        output_file = "Tables_Output.docx",
                         figure_width = 9, figure_height = 7, figure_res = 300,
                         word_width = NULL, word_height = NULL) {
-  if (!is.list(data_list)) {
-    stop("错误：'data_list' 必须是一个列表 (list)。")
+  image_extensions <- c("png", "jpg", "jpeg", "bmp", "gif", "tif", "tiff")
+
+  item_type <- function(item) {
+    if (inherits(item, "ggplot") || inherits(item, "plot_instr") ||
+        (is.list(item) && !inherits(item, "data.frame") &&
+         inherits(item$plot, "ggplot")) ||
+        (is.character(item) && length(item) == 1L && file.exists(item) &&
+         tolower(tools::file_ext(item)) %in% image_extensions)) {
+      return("figure")
+    }
+    if (inherits(item, "data.frame") || inherits(item, "gtsummary") ||
+        inherits(item, "flextable")) {
+      return("table")
+    }
+    NA_character_
   }
-  if (!is.character(table_titles) || anyNA(table_titles)) {
-    stop("'table_titles' must be a character vector without missing values.")
+
+  if (is.character(table_titles) && length(table_titles) == 1L &&
+      grepl("\\.docx$", table_titles, ignore.case = TRUE) &&
+      identical(output_file, "Tables_Output.docx")) {
+    output_file <- table_titles
+    table_titles <- NULL
   }
-  if (length(data_list) != length(table_titles)) {
-    stop("错误：数据集的数量 (data_list) 与标题的数量 (table_titles) 不一致！")
+
+  first_type <- item_type(data_list)
+  second_type <- if (is.null(table_titles)) NA_character_ else item_type(table_titles)
+
+  if (!is.na(first_type) && !is.na(second_type)) {
+    items <- list(data_list, table_titles)
+    titles <- NULL
+  } else if (!is.na(first_type)) {
+    items <- list(data_list)
+    titles <- table_titles
+  } else {
+    if (!is.list(data_list)) {
+      stop(
+        "'data_list' must be an exportable object or a list of exportable objects.",
+        call. = FALSE
+      )
+    }
+    items <- data_list
+    titles <- table_titles
   }
+
+  if (length(items) == 0L) {
+    stop("At least one table or figure must be supplied.", call. = FALSE)
+  }
+
   if (!is.character(output_file) || length(output_file) != 1L ||
       !grepl("\\.docx$", output_file, ignore.case = TRUE)) {
-    stop("错误：输出文件名 (output_file) 必须以 .docx 结尾！")
+    stop("'output_file' must end with .docx.", call. = FALSE)
+  }
+
+  item_types <- vapply(items, item_type, character(1))
+  unsupported <- which(is.na(item_types))
+  if (length(unsupported) > 0L) {
+    stop(sprintf(
+      paste0(
+        "Unsupported object at item %d. Use a table, ggplot, result list ",
+        "with $plot, plot_instr, or image path."
+      ),
+      unsupported[1]
+    ), call. = FALSE)
+  }
+
+  if (is.null(titles)) {
+    table_number <- cumsum(item_types == "table")
+    figure_number <- cumsum(item_types == "figure")
+    titles <- ifelse(
+      item_types == "table",
+      paste("Table", table_number),
+      paste("Figure", figure_number)
+    )
+  } else {
+    if (!is.character(titles) || anyNA(titles)) {
+      stop(
+        "'table_titles' must be a character vector without missing values.",
+        call. = FALSE
+      )
+    }
+    if (length(items) != length(titles)) {
+      stop(
+        "The numbers of exported items and titles do not match.",
+        call. = FALSE
+      )
+    }
   }
 
   size_args <- list(figure_width, figure_height, figure_res)
@@ -144,13 +224,14 @@ export_word <- function(data_list, table_titles, output_file = "Tables_Output.do
     stop("'word_height' must be NULL or a positive number.")
   }
 
-  image_extensions <- c("png", "jpg", "jpeg", "bmp", "gif", "tif", "tiff")
   rendered_files <- character()
   on.exit(unlink(rendered_files), add = TRUE)
 
-  for (i in seq_along(data_list)) {
-    doc <- officer::body_add_par(doc, value = table_titles[i], style = "Normal")
-    item <- data_list[[i]]
+  for (i in seq_along(items)) {
+    item <- items[[i]]
+    if (item_types[i] == "table") {
+      doc <- officer::body_add_par(doc, value = titles[i], style = "Normal")
+    }
     plot_item <- if (inherits(item, "ggplot")) {
       item
     } else if (is.list(item) && !inherits(item, "data.frame") &&
@@ -226,24 +307,19 @@ export_word <- function(data_list, table_titles, output_file = "Tables_Output.do
       doc <- officer::body_add_img(
         doc, src = item, width = word_width, height = display_height
       )
-    } else if (inherits(item, "data.frame") || inherits(item, "gtsummary") ||
-               inherits(item, "flextable")) {
+    } else {
       formatted_ft <- format_flextable(item)
       doc <- flextable::body_add_flextable(doc, value = formatted_ft)
-    } else {
-      stop(sprintf(
-        paste0(
-          "Unsupported object at data_list[[%d]]. Use a table, ggplot, ",
-          "result list with $plot, plot_instr, or image path."
-        ),
-        i
-      ))
+    }
+
+    if (item_types[i] == "figure") {
+      doc <- officer::body_add_par(doc, value = titles[i], style = "Normal")
     }
 
     doc <- officer::body_add_par(doc, value = "", style = "Normal")
   }
 
   print(doc, target = output_file)
-  message(sprintf("Successfully exported %d item(s) to: %s", length(data_list), output_file))
+  message(sprintf("Successfully exported %d item(s) to: %s", length(items), output_file))
   invisible(doc)
 }

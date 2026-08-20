@@ -6,7 +6,7 @@
 \usage{
 export_word(
   data_list,
-  table_titles,
+  table_titles = NULL,
   output_file = "Tables_Output.docx",
   figure_width = 9,
   figure_height = 7,
@@ -16,13 +16,16 @@ export_word(
 )
 }
 \arguments{
-\item{data_list}{A list of table or plot objects. Tables can be \code{data.frame},
-\code{gtsummary}, or \code{flextable} objects. Plots can be \code{ggplot} objects, result
-lists containing a \code{ggplot} in \verb{$plot}, \code{officer::plot_instr} objects, or
-paths to PNG, JPEG, BMP, GIF, or TIFF files.}
+\item{data_list}{A table or plot object, or a list of such objects. Tables can
+be \code{data.frame}, \code{gtsummary}, or \code{flextable} objects. Plots can be \code{ggplot}
+objects, result lists containing a \code{ggplot} in \verb{$plot},
+\code{officer::plot_instr} objects, or paths to PNG, JPEG, BMP, GIF, or TIFF
+files.}
 
-\item{table_titles}{A character vector of item titles. Must have the same
-length as \code{data_list}.}
+\item{table_titles}{Either a character vector of item titles or a second
+table/plot object. When omitted, titles are generated automatically as
+\code{"Table 1"}, \code{"Table 2"}, \code{"Figure 1"}, and so on. Table titles are placed
+above tables and figure titles below figures.}
 
 \item{output_file}{Output \code{.docx} path. Default is \code{"Tables_Output.docx"}.}
 
@@ -60,18 +63,8 @@ export_word(
   output_file = "tables_and_plots.docx"
 )
 
-p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
-  ggplot2::geom_point()
-export_word(
-  data_list = list(head(mtcars), p),
-  table_titles = c("Table 1: mtcars", "Figure 1: MPG and weight"),
-  output_file = "tables_and_plots.docx"
-)
-
-base_plot <- officer::plot_instr(
-  graphics::plot(mtcars$wt, mtcars$mpg)
-)
-export_word(list(base_plot), "Figure 1: Base R plot", "base_plot.docx")
+# Two objects can also be passed directly; titles are generated automatically.
+export_word(head(mtcars), head(iris), "two_tables.docx")
 }
 
 }
